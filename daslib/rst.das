@@ -243,15 +243,15 @@ def make_table(tab:array<array<string>>;withHeader:bool=false)
         var wid : array<int>
         resize(wid,cols)
         for cc in tab
-            for x in range(0,cols)
+            for x in range(cols)
                 wid[x] = max(wid[x], length(cc[x]))
-        for ccc,idx in tab,range(0,100500)
+        for ccc,idx in tab,range(100500)
             write_table_separator(writer,wid,(idx==1 && withHeader) ? "=" : "-")
             write_table_line(writer,ccc,wid)
         write_table_separator(writer,wid)
         write(writer,"\n\n")
 
-def topic(category:string;mod:Module?;name:string)
+def topic(category:string;mod:Module?;name:string implicit)
     return "|{category}-{module_name(mod)}-{name}|"
 
 def topic(mod:Module?)
@@ -274,7 +274,7 @@ def document_topic(doc_file:file;topic:string)
 def document_bitfield(doc_file:file; value:TypeDeclPtr)
     var tab : array<array<string>>
     emplace(tab,[{string "field"; "bit"; "value"}])
-    for an,bit in value.argNames,range(0,32)
+    for an,bit in value.argNames,range(32)
         var line : array<string>
         push(line,string(an))
         push(line,string(bit))
@@ -291,7 +291,7 @@ def document_variant(doc_file:file; value:TypeDeclPtr)
         emplace(tab,line)
     fwrite(doc_file,make_table(tab))
 
-def document_typedef(doc_file:file;mod:Module?;name:string;value)
+def document_typedef(doc_file:file;mod:Module?;name:string implicit;value)
     fwrite(doc_file,make_label(alias_label_name(value)))
     fwrite(doc_file,make_domain("das:attribute"))
     fwrite(doc_file,name)
@@ -380,7 +380,7 @@ def document_function_declaration(doc_file:file;domain,func_name:string;
         argNames:array<string>;argTypes:array<TypeDecl?>;resType:TypeDeclPtr)
     fwrite(doc_file,make_domain(domain))
     fwrite(doc_file,"{func_name}(")
-    for an,at,i in argNames,argTypes,range(0,100500)
+    for an,at,i in argNames,argTypes,range(100500)
         if argument_needs_documenting(at)
             if i != 0
                 fwrite(doc_file,"; ")
@@ -686,7 +686,7 @@ def hide_group(var group:DocGroup)
     return <- group
 
 [private]
-def generate_topic_stub(var tab:table<string;bool>;doc_file:file;topic:string)
+def generate_topic_stub(var tab:table<string;bool>;doc_file:file;topic:string implicit)
     if !tab[topic]
         tab[topic] = true
         fwrite(doc_file,".. {topic} replace:: to be documented\n\n" )
@@ -757,7 +757,9 @@ def document(name:string;mod:Module?;fname,substname:string;groups:array<DocGrou
     if doc_file == null
         panic("can't open {fname}")
     fwrite(doc_file,"\n")
-    let mod_name = string(mod.name)
+    var mod_name = string(mod.name)
+    if mod_name=="$"
+        mod_name = "_builtin"
     fwrite(doc_file,make_header(name,mod_name))
     if length(substname)!=0
         fwrite(doc_file,".. include:: {getDetailIncludePath(fname,substname)}\n\n")

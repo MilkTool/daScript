@@ -186,7 +186,7 @@ namespace das
     public:
         string                          name;
         vector<FieldDeclaration>        fields;
-        das_hash_map<string,int32_t>    filedLookup;
+        das_hash_map<string,int32_t>    fieldLookup;
         LineInfo                        at;
         Module *                        module = nullptr;
         Structure *                     parent = nullptr;
@@ -208,6 +208,7 @@ namespace das
     struct Variable : ptr_ref_count {
         VariablePtr clone() const;
         string getMangledName() const;
+        uint32_t getMangledNameHash() const;
         bool isAccessUnused() const;
         string          name;
         TypeDeclPtr     type;
@@ -326,6 +327,7 @@ namespace das
         virtual bool needDelete() const { return canDelete(); }
         virtual bool canDeletePtr() const { return false; }
         virtual bool isIndexable ( const TypeDeclPtr & ) const { return false; }
+        virtual bool isIndexMutable ( const TypeDeclPtr & ) const { return false; }
         virtual bool isIterable ( ) const { return false; }
         virtual bool isShareable ( ) const { return true; }
         virtual bool isSmart() const { return false; }
@@ -607,6 +609,7 @@ namespace das
 
                 bool    lambda : 1;
                 bool    firstArgReturnType : 1;
+                bool    noPointerCast : 1;
                 bool    isClassMethod : 1;
             };
             uint32_t flags = 0;
@@ -955,6 +958,7 @@ namespace das
         bool no_unused_function_arguments = false;
         bool smart_pointer_by_value_unsafe = false;     // is passing smart_ptr by value unsafe?
         bool allow_block_variable_shadowing = false;
+        bool allow_shared_lambda = false;
     // environment
         bool no_optimizations = false;                  // disable optimizations, regardless of settings
         bool fail_on_no_aot = true;                     // AOT link failure is error
@@ -963,32 +967,6 @@ namespace das
         //      1. disables [fastcall]
         //      2. invoke of blocks will have extra prologue overhead
         bool debugger = false;
-    };
-
-    struct CursorVariable {
-        ExpressionPtr   expr;
-        int32_t         index;
-        Function *      function;
-        CursorVariable ( Expression * e, int32_t i, Function * f )
-            : expr(e), index(i), function(f) {
-        }
-    };
-
-    struct CursorConstant {
-        ExpressionPtr   expr;
-        Function *      function;
-        CursorConstant ( Expression * e,  Function * f )
-            : expr(e), function(f) {
-        }
-    };
-
-    struct CursorInfo {
-        LineInfo                at;         // cursor location
-        vector<FunctionPtr>     function;   // function, whre cursor is
-        vector<ExpressionPtr>   call;       // call, if cursor is pointing at one (ExprCall, ExprLooksLikeCall, etc)
-        vector<CursorVariable>  variable;   // variables (ExprVar, ExprField, etc)
-        vector<CursorConstant>  constants;  // ExprConst...
-        string reportJson() const;
     };
 
     class Program : public ptr_ref_count {
@@ -1045,8 +1023,8 @@ namespace das
         void aotCpp ( Context & context, TextWriter & logs );
         void registerAotCpp ( TextWriter & logs, Context & context, bool headers = true );
         void buildMNLookup ( Context & context, TextWriter & logs );
+        void buildGMNLookup ( Context & context, TextWriter & logs );
         void buildADLookup ( Context & context, TextWriter & logs );
-        CursorInfo cursor ( const LineInfo & info );
         bool getOptimize() const;
         bool getDebugger() const;
         void makeMacroModule( TextWriter & logs );
@@ -1099,6 +1077,7 @@ namespace das
     string getModuleFileName ( const string & nameWithDots );
 
     // access function from class adapter
+    int adapt_field_offset ( const char * fName, const StructInfo * info );
     char * adapt_field ( const char * fName, char * pClass, const StructInfo * info );
     Func adapt ( const char * funcName, char * pClass, const StructInfo * info );
 

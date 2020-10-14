@@ -288,6 +288,7 @@ namespace das {
         auto fn = make_smart<Function>();
         fn->name = "clone";
         fn->generated = true;
+        fn->privateFunction = true;
         fn->at = fn->atDecl = str->at;
         fn->result = make_smart<TypeDecl>();
         fn->arguments.push_back(varA);
@@ -382,6 +383,7 @@ namespace das {
         auto fb = make_smart<ExprBlock>();
         fb->at = ls->at;
         // now finalize
+        bool needUnsafe = false;
         for ( const auto & fl : ls->fields ) {
             if ( fl.type->needDelete() ) {
                 if ( !fl.doNotDelete && !fl.capturedRef ) {
@@ -390,6 +392,9 @@ namespace das {
                     fld->ignoreCaptureConst = true;
                     auto delf = make_smart<ExprDelete>(fl.at, fld);
                     fb->list.emplace_back(delf);
+                    if ( fl.type->isPointer() ) {
+                        needUnsafe = true;
+                    }
                 }
             }
         }
@@ -405,7 +410,9 @@ namespace das {
         cTHIS->type = make_smart<TypeDecl>(ls);
         cTHIS->type->isExplicit = true;
         pFunc->arguments.push_back(cTHIS);
-        wrapInUnsafe(pFunc);
+        if ( needUnsafe ) {
+            wrapInUnsafe(pFunc);
+        }
         verifyGenerated(pFunc->body);
         return pFunc;
     }
@@ -424,6 +431,7 @@ namespace das {
             auto with = make_smart<ExprWith>(block->at);
             auto THISVAR = make_smart<ExprVar>(block->at, "__this");
             with->with = make_smart<ExprPtr2Ref>(block->at, THISVAR);
+            with->with->generated = true;
             auto bbl = make_smart<ExprBlock>();
             with->body = bbl;
             with->body->at = block->at;
@@ -453,7 +461,7 @@ namespace das {
         cTHIS->type->firstType = make_smart<TypeDecl>(ls);
         cTHIS->type->isExplicit = true;
         pFunc->arguments.push_back(cTHIS);
-        wrapInUnsafe(pFunc);
+        // wrapInUnsafe(pFunc);
         verifyGenerated(pFunc->body);
         return pFunc;
     }
@@ -467,6 +475,8 @@ namespace das {
         pFunc->body = block->clone();
         auto wb = static_pointer_cast<ExprBlock>(pFunc->body);
         wb->blockFlags = 0;
+        wb->arguments.clear();
+        wb->returnType.reset();
         pFunc->result = make_smart<TypeDecl>(*block->type);
         for ( auto & arg : block->arguments ) {
             auto cA = arg->clone();
@@ -494,6 +504,7 @@ namespace das {
         fb->at = block->at;
         auto with = make_smart<ExprWith>(block->at);
         with->with = make_smart<ExprVar>(block->at, "__this");
+        with->with->generated = true;
         with->body = block->clone();
         static_pointer_cast<ExprBlock>(with->body)->finalList.clear();
         if ( needYield ) {
@@ -1192,6 +1203,7 @@ namespace das {
         DAS_ASSERT(tupleType->isTuple() && "can only clone tuple");
         auto fn = make_smart<Function>();
         fn->generated = true;
+        fn->privateFunction = true;
         fn->name = "clone";
         fn->at = fn->atDecl = at;
         fn->result = make_smart<TypeDecl>(Type::tVoid);
@@ -1242,6 +1254,7 @@ namespace das {
         fn->arguments.push_back(arg0);
         auto block = make_smart<ExprBlock>();
         block->at = at;
+        bool needUnsafe = false;
         for ( size_t argi=0; argi!=tupleType->argTypes.size(); ++argi ) {
             if (tupleType->argTypes[argi]->needDelete()) {
                 string argn = "_" + to_string(argi);
@@ -1249,6 +1262,9 @@ namespace das {
                 auto lf = make_smart<ExprField>(at, lv, argn);
                 auto cl = make_smart<ExprDelete>(at, lf);
                 block->list.push_back(cl);
+                if ( tupleType->argTypes[argi]->isPointer() ) {
+                    needUnsafe = true;
+                }
             }
         }
         auto mz = make_smart<ExprMemZero>(at, "memzero");
@@ -1256,6 +1272,9 @@ namespace das {
         mz->arguments.push_back(lvar);
         block->list.push_back(mz);
         fn->body = block;
+        if ( needUnsafe ) {
+            wrapInUnsafe(fn);
+        }
         verifyGenerated(fn->body);
         return fn;
     }
@@ -1264,6 +1283,7 @@ namespace das {
         DAS_ASSERT(variantType->isVariant() && "can only clone variant");
         auto fn = make_smart<Function>();
         fn->generated = true;
+        fn->privateFunction = true;
         fn->name = "clone";
         fn->at = fn->atDecl = at;
         fn->result = make_smart<TypeDecl>(Type::tVoid);
@@ -1338,6 +1358,7 @@ namespace das {
         auto block = make_smart<ExprBlock>();
         block->at = at;
         smart_ptr<ExprIfThenElse> topIf, lastIf;
+        bool needUnsafe = false;
         for ( size_t argi=0; argi!=variantType->argTypes.size(); ++argi ) {
             if (variantType->argTypes[argi]->needDelete()) {
                 const string & argn = variantType->argNames[argi];
@@ -1358,6 +1379,9 @@ namespace das {
                 } else {
                     topIf = lastIf = thisIf;
                 }
+                if ( variantType->argTypes[argi]->isPointer() ) {
+                    needUnsafe = true;
+                }
             }
         }
         if (topIf) block->list.push_back(topIf);
@@ -1366,7 +1390,9 @@ namespace das {
         mz->arguments.push_back(lvar);
         block->list.push_back(mz);
         fn->body = block;
-        wrapInUnsafe(fn);
+        if ( needUnsafe ) {
+            wrapInUnsafe(fn);
+        }
         verifyGenerated(fn->body);
         return fn;
     }
@@ -1376,6 +1402,7 @@ namespace das {
         DAS_ASSERT(left->firstType && left->firstType->annotation && "can only clone smart handled types");
         auto fn = make_smart<Function>();
         fn->generated = true;
+        fn->privateFunction = true;
         fn->name = "clone";
         fn->at = fn->atDecl = at;
         fn->result = make_smart<TypeDecl>(Type::tVoid);
@@ -1560,7 +1587,7 @@ namespace das {
     }
 
     FunctionPtr makeClassFinalize ( Structure * baseClass ) {
-        // add __finalize filed
+        // add __finalize field
         auto fname = baseClass->name + "'__finalize";
         ExpressionPtr finit = make_smart<ExprAddr>(baseClass->at, "_::" + fname);
         if ( baseClass->parent ) {
@@ -1654,6 +1681,16 @@ namespace das {
         // and done
         verifyGenerated(mkb);
         return mkb;
+    }
+
+    void assignDefaultArguments ( Function * func ) {
+        for ( auto & arg : func->arguments ) {
+            if ( arg->type->baseType==Type::fakeContext ) {
+                arg->init = make_smart<ExprFakeContext>(arg->at);
+            } else if ( arg->type->baseType==Type::fakeLineInfo ) {
+                arg->init = make_smart<ExprFakeLineInfo>(arg->at);
+            }
+        }
     }
 }
 

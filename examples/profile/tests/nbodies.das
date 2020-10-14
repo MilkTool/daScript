@@ -5,7 +5,7 @@ require math
 require testProfile
 //ported from https://benchmarksgame-team.pages.debian.net/benchmarksgame/program/nbody-gcc-2.html
 
-let 
+let
   SOLAR_MASS = 4.*PI*PI
 let
   DAYS_PER_YEAR = 365.24
@@ -16,7 +16,7 @@ struct body
   v:float3
   mass:float
 var
-  bodies = [[body
+  g_bodies = [[body
             /*sun*/
               x=float3(0,0,0), v=float3(0,0,0), mass = SOLAR_MASS;
             /*jupiter*/
@@ -36,16 +36,16 @@ var
               v = float3( 2.68067772490389322e-03 * DAYS_PER_YEAR, 1.62824170038242295e-03 * DAYS_PER_YEAR, -9.51592254519715870e-05 * DAYS_PER_YEAR ),
               mass = 5.15138902046611451e-05 * SOLAR_MASS
             ]]
-let 
+let
   nbodies = 5
 
-def offset_momentum()
+def offset_momentum(var bodies:body[5])
   var px:float3
   for b in bodies
     px -= b.v * b.mass
   bodies[0].v = px / SOLAR_MASS
 
-def advance()
+def advance(var bodies:body[5])
   var i = 0
   for b in bodies
     ++i
@@ -58,7 +58,7 @@ def advance()
       b2.v += dx * (b.mass*mag)
     b.x += b.v
 
-def energy():float
+def energy(var bodies:body[5])
   var e = 0.0
   var i = 0
   for b in bodies
@@ -75,26 +75,26 @@ def energy():float
  *
  * When all advances done, rescale bodies back to obtain correct energy.
  */
-def scale_bodies(scale)
+def scale_bodies(scale; var bodies:body[5])
   for b in bodies
     b.mass *= scale * scale
     b.v *= scale
 
 def nbodies(n)
-  scale_bodies(0.01)
-  for i in range(0, n)
-    advance()
-  scale_bodies(1./0.01)
+  scale_bodies(0.01,g_bodies)
+  for i in range( n)
+    advance(g_bodies)
+  scale_bodies(1./0.01,g_bodies)
 
 [export]
 def test()
-  offset_momentum()
+  offset_momentum(g_bodies)
   // print("\ninitial energy {energy()}\n")
-  energy()
+  energy(g_bodies)
   profile(10, "n-bodies")  <|
     nbodies(500000)
   // print("\nresult energy {energy()}\n")
-  energy()
+  energy(g_bodies)
   testNBodiesInit()
   profile(10, "n-bodies, C++")  <|
     testNBodiesS(500000)

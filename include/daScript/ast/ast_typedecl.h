@@ -67,6 +67,7 @@ namespace das {
         bool isVoid() const;
         bool isRef() const;
         bool isRefType() const;
+        bool isRefOrPointer() const { return isRef() || isPointer(); }
         bool isTemp( bool topLevel = true, bool refMatters = true) const;
         bool isTemp(bool topLevel, bool refMatters, das_set<Structure*> & dep) const;
         bool isTempType(bool refMatters = true) const;
@@ -77,12 +78,14 @@ namespace das {
         bool isNumeric() const;
         bool isNumericComparable() const;
         bool isPointer() const;
+        bool isVoidPointer() const;
         bool isIterator() const;
         bool isEnum() const;
         bool isEnumT() const;
         bool isHandle() const;
         bool isStructure() const;
         bool isClass() const;
+        bool isFunction() const;
         bool isTuple() const;
         bool isVariant() const;
         int getSizeOf() const;
@@ -116,6 +119,7 @@ namespace das {
         bool isFoldable() const;
         bool isAlias() const;
         void collectAliasList(vector<string> & aliases) const;
+        bool isAutoArrayResolved() const;
         bool isAuto() const;
         bool isAutoOrAlias() const;
         bool isVectorType() const;

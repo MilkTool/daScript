@@ -7,7 +7,12 @@ AST manipulation library
 
 .. include:: detail/ast.rst
 
-|module-ast|
+The AST module implements compilation time reflection for the daScript syntax tree.
+
+All functions and symbols are in "ast" module, use require to get access to it. ::
+
+    require ast
+
 
 ++++++++++++
 Type aliases
@@ -3722,33 +3727,37 @@ TypeDecl fields are
 
 TypeDecl properties are
 
-+---------------+----+
-+isCtorType     +bool+
-+---------------+----+
-+alignOf        +int +
-+---------------+----+
-+isVoid         +bool+
-+---------------+----+
-+isAuto         +bool+
-+---------------+----+
-+canMove        +bool+
-+---------------+----+
-+isExprType     +bool+
-+---------------+----+
-+sizeOf         +int +
-+---------------+----+
-+isAlias        +bool+
-+---------------+----+
-+baseSizeOf     +int +
-+---------------+----+
-+isString       +bool+
-+---------------+----+
-+canCopy        +bool+
-+---------------+----+
-+countOf        +int +
-+---------------+----+
-+isWorkhorseType+bool+
-+---------------+----+
++---------------+------------------------------------+
++isCtorType     +bool                                +
++---------------+------------------------------------+
++alignOf        +int                                 +
++---------------+------------------------------------+
++vectorBaseType + :ref:`rtti::Type <enum-rtti-Type>` +
++---------------+------------------------------------+
++vectorDim      +int                                 +
++---------------+------------------------------------+
++isVoid         +bool                                +
++---------------+------------------------------------+
++isAuto         +bool                                +
++---------------+------------------------------------+
++canMove        +bool                                +
++---------------+------------------------------------+
++isExprType     +bool                                +
++---------------+------------------------------------+
++sizeOf         +int                                 +
++---------------+------------------------------------+
++isAlias        +bool                                +
++---------------+------------------------------------+
++baseSizeOf     +int                                 +
++---------------+------------------------------------+
++isString       +bool                                +
++---------------+------------------------------------+
++canCopy        +bool                                +
++---------------+------------------------------------+
++countOf        +int                                 +
++---------------+------------------------------------+
++isWorkhorseType+bool                                +
++---------------+------------------------------------+
 
 
 |structure_annotation-ast-TypeDecl|
@@ -8426,6 +8435,21 @@ clone_expression returns smart_ptr< :ref:`ast::Expression <handle-ast-Expression
 
 |function-ast-clone_expression|
 
+.. _function-_at_ast_c__c_clone_function__hh_smart_ptr_hh__hh_handle_hh_Function_hh_const_hh_implicit:
+
+.. das:function:: clone_function(arg0: smart_ptr<ast::Function> const implicit)
+
+clone_function returns smart_ptr< :ref:`ast::Function <handle-ast-Function>` >
+
++--------+----------------------------------------------------------------------+
++argument+argument type                                                         +
++========+======================================================================+
++arg0    +smart_ptr< :ref:`ast::Function <handle-ast-Function>` > const implicit+
++--------+----------------------------------------------------------------------+
+
+
+|function-ast-clone_function|
+
 .. _function-_at_ast_c__c_clone_type__hh_smart_ptr_hh__hh_handle_hh_TypeDecl_hh_const_hh_implicit:
 
 .. das:function:: clone_type(arg0: smart_ptr<ast::TypeDecl> const implicit)
@@ -8585,16 +8609,16 @@ find_module returns  :ref:`rtti::Module <handle-rtti-Module>` ?
 
 |function-ast-for_each_field|
 
-.. _function-_at_ast_c__c_for_each_function__hh_ptr_hh__hh_handle_hh_Module_hh_const_hh_implicit_string_hh_const__hh_block_hh__hh_smart_ptr_hh__hh_handle_hh_Function_hh__c_void_hh_const_hh_implicit__hh_const__hh_const:
+.. _function-_at_ast_c__c_for_each_function__hh_ptr_hh__hh_handle_hh_Module_hh_const_hh_implicit_string_hh_const_hh_implicit__hh_block_hh__hh_smart_ptr_hh__hh_handle_hh_Function_hh__c_void_hh_const_hh_implicit__hh_const__hh_const:
 
-.. das:function:: for_each_function(arg0: rtti::Module? const implicit; arg1: string const; arg2: block<(smart_ptr<ast::Function>):void> const implicit)
+.. das:function:: for_each_function(arg0: rtti::Module? const implicit; arg1: string const implicit; arg2: block<(smart_ptr<ast::Function>):void> const implicit)
 
 +--------+------------------------------------------------------------------------------------+
 +argument+argument type                                                                       +
 +========+====================================================================================+
 +arg0    + :ref:`rtti::Module <handle-rtti-Module>` ? const implicit                          +
 +--------+------------------------------------------------------------------------------------+
-+arg1    +string const                                                                        +
++arg1    +string const implicit                                                               +
 +--------+------------------------------------------------------------------------------------+
 +arg2    +block<(smart_ptr< :ref:`ast::Function <handle-ast-Function>` >):void> const implicit+
 +--------+------------------------------------------------------------------------------------+
@@ -8617,16 +8641,16 @@ find_module returns  :ref:`rtti::Module <handle-rtti-Module>` ?
 
 |function-ast-for_each_generic|
 
-.. _function-_at_ast_c__c_for_each_generic__hh_ptr_hh__hh_handle_hh_Module_hh_const_hh_implicit_string_hh_const__hh_block_hh__hh_smart_ptr_hh__hh_handle_hh_Function_hh__c_void_hh_const_hh_implicit__hh_const__hh_const:
+.. _function-_at_ast_c__c_for_each_generic__hh_ptr_hh__hh_handle_hh_Module_hh_const_hh_implicit_string_hh_const_hh_implicit__hh_block_hh__hh_smart_ptr_hh__hh_handle_hh_Function_hh__c_void_hh_const_hh_implicit__hh_const__hh_const:
 
-.. das:function:: for_each_generic(arg0: rtti::Module? const implicit; arg1: string const; arg2: block<(smart_ptr<ast::Function>):void> const implicit)
+.. das:function:: for_each_generic(arg0: rtti::Module? const implicit; arg1: string const implicit; arg2: block<(smart_ptr<ast::Function>):void> const implicit)
 
 +--------+------------------------------------------------------------------------------------+
 +argument+argument type                                                                       +
 +========+====================================================================================+
 +arg0    + :ref:`rtti::Module <handle-rtti-Module>` ? const implicit                          +
 +--------+------------------------------------------------------------------------------------+
-+arg1    +string const                                                                        +
++arg1    +string const implicit                                                               +
 +--------+------------------------------------------------------------------------------------+
 +arg2    +block<(smart_ptr< :ref:`ast::Function <handle-ast-Function>` >):void> const implicit+
 +--------+------------------------------------------------------------------------------------+
@@ -8751,9 +8775,9 @@ is_same_type returns bool
 
 |function-ast-is_same_type|
 
-.. _function-_at_ast_c__c_macro_error__hh_smart_ptr_hh__hh_handle_hh_Program_hh_const_hh_implicit__hh_handle_hh_LineInfo_hh_const_hh_implicit_string_hh_const:
+.. _function-_at_ast_c__c_macro_error__hh_smart_ptr_hh__hh_handle_hh_Program_hh_const_hh_implicit__hh_handle_hh_LineInfo_hh_const_hh_implicit_string_hh_const_hh_implicit:
 
-.. das:function:: macro_error(arg0: smart_ptr<rtti::Program> const implicit; arg1: LineInfo const implicit; arg2: string const)
+.. das:function:: macro_error(arg0: smart_ptr<rtti::Program> const implicit; arg1: LineInfo const implicit; arg2: string const implicit)
 
 +--------+----------------------------------------------------------------------+
 +argument+argument type                                                         +
@@ -8762,22 +8786,22 @@ is_same_type returns bool
 +--------+----------------------------------------------------------------------+
 +arg1    + :ref:`rtti::LineInfo <handle-rtti-LineInfo>`  const implicit         +
 +--------+----------------------------------------------------------------------+
-+arg2    +string const                                                          +
++arg2    +string const implicit                                                 +
 +--------+----------------------------------------------------------------------+
 
 
 |function-ast-macro_error|
 
-.. _function-_at_ast_c__c_make_call_macro_string_hh_const__hh_ptr_hh_const_hh_implicit__hh_ptr_hh__hh_handle_hh_StructInfo_hh_const_hh_const_hh_implicit__hh_const:
+.. _function-_at_ast_c__c_make_call_macro_string_hh_const_hh_implicit__hh_ptr_hh_const_hh_implicit__hh_ptr_hh__hh_handle_hh_StructInfo_hh_const_hh_const_hh_implicit__hh_const:
 
-.. das:function:: make_call_macro(arg0: string const; arg1: void? const implicit; arg2: rtti::StructInfo const? const implicit)
+.. das:function:: make_call_macro(arg0: string const implicit; arg1: void? const implicit; arg2: rtti::StructInfo const? const implicit)
 
 make_call_macro returns smart_ptr< :ref:`ast::CallMacro <handle-ast-CallMacro>` >
 
 +--------+------------------------------------------------------------------------+
 +argument+argument type                                                           +
 +========+========================================================================+
-+arg0    +string const                                                            +
++arg0    +string const implicit                                                   +
 +--------+------------------------------------------------------------------------+
 +arg1    +void? const implicit                                                    +
 +--------+------------------------------------------------------------------------+
@@ -8787,16 +8811,16 @@ make_call_macro returns smart_ptr< :ref:`ast::CallMacro <handle-ast-CallMacro>` 
 
 |function-ast-make_call_macro|
 
-.. _function-_at_ast_c__c_make_function_annotation_string_hh_const__hh_ptr_hh_const_hh_implicit__hh_ptr_hh__hh_handle_hh_StructInfo_hh_const_hh_const_hh_implicit__hh_const:
+.. _function-_at_ast_c__c_make_function_annotation_string_hh_const_hh_implicit__hh_ptr_hh_const_hh_implicit__hh_ptr_hh__hh_handle_hh_StructInfo_hh_const_hh_const_hh_implicit__hh_const:
 
-.. das:function:: make_function_annotation(arg0: string const; arg1: void? const implicit; arg2: rtti::StructInfo const? const implicit)
+.. das:function:: make_function_annotation(arg0: string const implicit; arg1: void? const implicit; arg2: rtti::StructInfo const? const implicit)
 
 make_function_annotation returns smart_ptr< :ref:`ast::FunctionAnnotation <handle-ast-FunctionAnnotation>` >
 
 +--------+------------------------------------------------------------------------+
 +argument+argument type                                                           +
 +========+========================================================================+
-+arg0    +string const                                                            +
++arg0    +string const implicit                                                   +
 +--------+------------------------------------------------------------------------+
 +arg1    +void? const implicit                                                    +
 +--------+------------------------------------------------------------------------+
@@ -8806,16 +8830,16 @@ make_function_annotation returns smart_ptr< :ref:`ast::FunctionAnnotation <handl
 
 |function-ast-make_function_annotation|
 
-.. _function-_at_ast_c__c_make_pass_macro_string_hh_const__hh_ptr_hh_const_hh_implicit__hh_ptr_hh__hh_handle_hh_StructInfo_hh_const_hh_const_hh_implicit__hh_const:
+.. _function-_at_ast_c__c_make_pass_macro_string_hh_const_hh_implicit__hh_ptr_hh_const_hh_implicit__hh_ptr_hh__hh_handle_hh_StructInfo_hh_const_hh_const_hh_implicit__hh_const:
 
-.. das:function:: make_pass_macro(arg0: string const; arg1: void? const implicit; arg2: rtti::StructInfo const? const implicit)
+.. das:function:: make_pass_macro(arg0: string const implicit; arg1: void? const implicit; arg2: rtti::StructInfo const? const implicit)
 
 make_pass_macro returns smart_ptr< :ref:`ast::PassMacro <handle-ast-PassMacro>` >
 
 +--------+------------------------------------------------------------------------+
 +argument+argument type                                                           +
 +========+========================================================================+
-+arg0    +string const                                                            +
++arg0    +string const implicit                                                   +
 +--------+------------------------------------------------------------------------+
 +arg1    +void? const implicit                                                    +
 +--------+------------------------------------------------------------------------+
@@ -8825,16 +8849,16 @@ make_pass_macro returns smart_ptr< :ref:`ast::PassMacro <handle-ast-PassMacro>` 
 
 |function-ast-make_pass_macro|
 
-.. _function-_at_ast_c__c_make_reader_macro_string_hh_const__hh_ptr_hh_const_hh_implicit__hh_ptr_hh__hh_handle_hh_StructInfo_hh_const_hh_const_hh_implicit__hh_const:
+.. _function-_at_ast_c__c_make_reader_macro_string_hh_const_hh_implicit__hh_ptr_hh_const_hh_implicit__hh_ptr_hh__hh_handle_hh_StructInfo_hh_const_hh_const_hh_implicit__hh_const:
 
-.. das:function:: make_reader_macro(arg0: string const; arg1: void? const implicit; arg2: rtti::StructInfo const? const implicit)
+.. das:function:: make_reader_macro(arg0: string const implicit; arg1: void? const implicit; arg2: rtti::StructInfo const? const implicit)
 
 make_reader_macro returns smart_ptr< :ref:`ast::ReaderMacro <handle-ast-ReaderMacro>` >
 
 +--------+------------------------------------------------------------------------+
 +argument+argument type                                                           +
 +========+========================================================================+
-+arg0    +string const                                                            +
++arg0    +string const implicit                                                   +
 +--------+------------------------------------------------------------------------+
 +arg1    +void? const implicit                                                    +
 +--------+------------------------------------------------------------------------+
@@ -8844,16 +8868,16 @@ make_reader_macro returns smart_ptr< :ref:`ast::ReaderMacro <handle-ast-ReaderMa
 
 |function-ast-make_reader_macro|
 
-.. _function-_at_ast_c__c_make_structure_annotation_string_hh_const__hh_ptr_hh_const_hh_implicit__hh_ptr_hh__hh_handle_hh_StructInfo_hh_const_hh_const_hh_implicit__hh_const:
+.. _function-_at_ast_c__c_make_structure_annotation_string_hh_const_hh_implicit__hh_ptr_hh_const_hh_implicit__hh_ptr_hh__hh_handle_hh_StructInfo_hh_const_hh_const_hh_implicit__hh_const:
 
-.. das:function:: make_structure_annotation(arg0: string const; arg1: void? const implicit; arg2: rtti::StructInfo const? const implicit)
+.. das:function:: make_structure_annotation(arg0: string const implicit; arg1: void? const implicit; arg2: rtti::StructInfo const? const implicit)
 
 make_structure_annotation returns smart_ptr< :ref:`ast::StructureAnnotation <handle-ast-StructureAnnotation>` >
 
 +--------+------------------------------------------------------------------------+
 +argument+argument type                                                           +
 +========+========================================================================+
-+arg0    +string const                                                            +
++arg0    +string const implicit                                                   +
 +--------+------------------------------------------------------------------------+
 +arg1    +void? const implicit                                                    +
 +--------+------------------------------------------------------------------------+
@@ -8863,16 +8887,16 @@ make_structure_annotation returns smart_ptr< :ref:`ast::StructureAnnotation <han
 
 |function-ast-make_structure_annotation|
 
-.. _function-_at_ast_c__c_make_variant_macro_string_hh_const__hh_ptr_hh_const_hh_implicit__hh_ptr_hh__hh_handle_hh_StructInfo_hh_const_hh_const_hh_implicit__hh_const:
+.. _function-_at_ast_c__c_make_variant_macro_string_hh_const_hh_implicit__hh_ptr_hh_const_hh_implicit__hh_ptr_hh__hh_handle_hh_StructInfo_hh_const_hh_const_hh_implicit__hh_const:
 
-.. das:function:: make_variant_macro(arg0: string const; arg1: void? const implicit; arg2: rtti::StructInfo const? const implicit)
+.. das:function:: make_variant_macro(arg0: string const implicit; arg1: void? const implicit; arg2: rtti::StructInfo const? const implicit)
 
 make_variant_macro returns smart_ptr< :ref:`ast::VariantMacro <handle-ast-VariantMacro>` >
 
 +--------+------------------------------------------------------------------------+
 +argument+argument type                                                           +
 +========+========================================================================+
-+arg0    +string const                                                            +
++arg0    +string const implicit                                                   +
 +--------+------------------------------------------------------------------------+
 +arg1    +void? const implicit                                                    +
 +--------+------------------------------------------------------------------------+
@@ -8914,6 +8938,21 @@ this_module returns  :ref:`rtti::Module <handle-rtti-Module>` ?
 this_program returns smart_ptr< :ref:`rtti::Program <handle-rtti-Program>` >
 
 |function-ast-this_program|
+
+.. _function-_at_ast_c__c_visit__hh_smart_ptr_hh__hh_handle_hh_Function_hh_const_hh_implicit__hh_smart_ptr_hh__hh_handle_hh_VisitorAdapter_hh_const_hh_implicit:
+
+.. das:function:: visit(arg0: smart_ptr<ast::Function> const implicit; arg1: smart_ptr<ast::VisitorAdapter> const implicit)
+
++--------+----------------------------------------------------------------------------------+
++argument+argument type                                                                     +
++========+==================================================================================+
++arg0    +smart_ptr< :ref:`ast::Function <handle-ast-Function>` > const implicit            +
++--------+----------------------------------------------------------------------------------+
++arg1    +smart_ptr< :ref:`ast::VisitorAdapter <handle-ast-VisitorAdapter>` > const implicit+
++--------+----------------------------------------------------------------------------------+
+
+
+|function-ast-visit|
 
 .. _function-_at_ast_c__c_visit__hh_smart_ptr_hh__hh_handle_hh_Program_hh_const_hh_implicit__hh_smart_ptr_hh__hh_handle_hh_VisitorAdapter_hh_const_hh_implicit:
 

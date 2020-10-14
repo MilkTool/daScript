@@ -36,6 +36,14 @@ namespace das {
     void das_debug ( Context * context, TypeInfo * typeInfo, const char * FILE, int LINE, vec4f res, const char * message = nullptr );
 
     template <typename TT>
+    struct das_auto_cast {
+        template <typename QQ>
+        __forceinline static TT cast ( QQ && expr ) {
+            return (TT) expr;
+        }
+    };
+
+    template <typename TT>
     __forceinline void das_zero ( TT & a ) {
         memset(&a, 0, sizeof(TT));
     }
@@ -73,23 +81,27 @@ namespace das {
         return a != b;
     }
 
-    template <typename TT, int offset>
+    template <typename TT, uint32_t mnh>
     __forceinline TT & das_global ( Context * __context__ ) {
+        uint32_t offset =  __context__->globalOffsetByMangledName(mnh);
         return *(TT *)(__context__->globals + offset);
     }
 
-    template <typename TT, int offset>
+    template <typename TT, uint32_t mnh>
     __forceinline void das_global_zero ( Context * __context__ ) {
+        uint32_t offset =  __context__->globalOffsetByMangledName(mnh);
         memset(__context__->globals + offset, 0, sizeof(TT));
     }
 
-    template <typename TT, int offset>
+    template <typename TT, uint32_t mnh>
     __forceinline TT & das_shared ( Context * __context__ ) {
+        uint32_t offset =  __context__->globalOffsetByMangledName(mnh);
         return *(TT *)(__context__->shared + offset);
     }
 
-    template <typename TT, int offset>
+    template <typename TT, uint32_t mnh>
     __forceinline void das_shared_zero ( Context * __context__ ) {
+        uint32_t offset =  __context__->globalOffsetByMangledName(mnh);
         memset(__context__->shared + offset, 0, sizeof(TT));
     }
 
@@ -504,6 +516,11 @@ namespace das {
     template <typename TT> struct das_index<const vec3<TT>> : das_vec_index<TT, vec3<TT>, 3> {};
     template <typename TT> struct das_index<const vec4<TT>> : das_vec_index<TT, vec4<TT>, 4> {};
 
+    template<> struct das_index<range> : das_vec_index<int32_t, range, 2> {};
+    template<> struct das_index<const range> : das_vec_index<int32_t, range, 2> {};
+
+    template<> struct das_index<urange> : das_vec_index<uint32_t, urange, 2> {};
+    template<> struct das_index<const urange> : das_vec_index<uint32_t, urange, 2> {};
 
     template <typename VecT, int size>
     struct das_index<Matrix<VecT,size>> {
@@ -549,6 +566,16 @@ namespace das {
             return value[index];
         }
         static __forceinline const TT & at ( const TT * value, uint32_t index, Context * ) {
+            return value[index];
+        }
+    };
+
+    template <typename TT>
+    struct das_index<TT *> {
+        static __forceinline TT & at ( TT * value, int32_t index, Context * ) {
+            return value[index];
+        }
+        static __forceinline TT & at ( TT * value, uint32_t index, Context * ) {
             return value[index];
         }
     };
@@ -631,6 +658,7 @@ namespace das {
     template <typename TT>
     struct TArray : Array {
         using THIS_TYPE = TArray<TT>;
+        enum { stride = sizeof(TT) };
         TArray()  {}
         TArray(TArray & arr) { moveA(arr); }
         TArray(TArray && arr ) { moveA(arr); }
@@ -1699,6 +1727,10 @@ namespace das {
         }
         BlockFn blockFunction;
     };
+
+    __forceinline Func getDasClassMethod ( void * self, int offset ) {
+        return *(Func *)(((char *)self) + offset);
+    }
 
     template <typename ResType>
     struct das_invoke {

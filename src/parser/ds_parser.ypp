@@ -259,6 +259,7 @@
 %token  LPIPE               "<|"
 %token  LBPIPE              " <|"
 %token  LAPIPE              "@ <|"
+%token  LFPIPE              "@@ <|"
 %token  RPIPE               "|>"
 %token  CLONEEQU            ":="
 %token  ROTL                "<<<"
@@ -928,6 +929,7 @@ function_name
 global_function_declaration
     :   optional_annotation_list[annL] DAS_DEF[from] function_declaration[func] {
         $func->atDecl = tokRangeAt(@from,@func);
+        assignDefaultArguments($func);
         runFunctionAnnotations($func, $annL, tokAt(@annL));
         if ( $func->isGeneric() ) {
             if ( !g_Program->addGeneric($func) ) {
@@ -1068,6 +1070,9 @@ expr_pipe
         $$ = $fncall;
     }
     |   LAPIPE expr_block[arg] {
+        $$ = $arg;
+    }
+    |   LFPIPE expr_block[arg] {
         $$ = $arg;
     }
     ;
@@ -1414,7 +1419,9 @@ expr_assign
 
 expr_assign_pipe
     :   expr[left] '='[loc]    LAPIPE expr[right]   { $$ = new ExprCopy(tokAt(@loc),ExpressionPtr($left),ExpressionPtr($right)); }
+    |   expr[left] '='[loc]    LFPIPE expr[right]   { $$ = new ExprCopy(tokAt(@loc),ExpressionPtr($left),ExpressionPtr($right)); }
     |   expr[left] LARROW[loc] LAPIPE expr[right]   { $$ = new ExprMove(tokAt(@loc),ExpressionPtr($left), ExpressionPtr($right)); }
+    |   expr[left] LARROW[loc] LFPIPE expr[right]   { $$ = new ExprMove(tokAt(@loc),ExpressionPtr($left), ExpressionPtr($right)); }
     ;
 
 expr_named_call
@@ -1474,7 +1481,6 @@ expr_field
         delete $name;
     }
     |   expr[subexpr] '.'[loc] { das_supress_errors=true; } error { das_supress_errors=false; } {
-        printf("here\n");
         $$ = new ExprField(tokAt(@loc), tokAt(@loc), ExpressionPtr($subexpr), "");
         yyerrok;
     }
@@ -1775,6 +1781,7 @@ struct_variable_declaration_list
                     modifyToClassMember($func, g_thisStructure, true);
                 }
             }
+            assignDefaultArguments($func);
             runFunctionAnnotations($func, $annL, tokAt(@annL));
             if ( !g_Program->addFunction($func) ) {
                 das_yyerror("function is already defined " + $func->getMangledName(),

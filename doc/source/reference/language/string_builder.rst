@@ -1,9 +1,9 @@
 .. _string_builder:
 
 
-=================
+==============
 String Builder
-=================
+==============
 
 .. index::
     single: String Builder
@@ -21,6 +21,6 @@ But generally, that can be run-time compiled as well.
 Expression in {} can be of any type, including handled extern type, provided that said type implements DataWalker.
 All PODs in daScript do have DataWalker 'to string' implementation.
 
-In order to make string with {} inside, one has to escape it with '\\\\' ::
+In order to make string with {} inside, one has to escape curly brackets with '\\' ::
 
     print("Curly brackets=\{\}")  // prints Curly brackets={}

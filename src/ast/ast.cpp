@@ -285,9 +285,9 @@ namespace das {
     }
 
     const Structure::FieldDeclaration * Structure::findField ( const string & na ) const {
-        if ( filedLookup.size()==fields.size() ) {
-            auto it = filedLookup.find(na);
-            if ( it == filedLookup.end() ) return nullptr;
+        if ( fieldLookup.size()==fields.size() ) {
+            auto it = fieldLookup.find(na);
+            if ( it == fieldLookup.end() ) return nullptr;
             return &fields[it->second];
         } else {
             for ( const auto & fd : fields ) {
@@ -372,6 +372,11 @@ namespace das {
     string Variable::getMangledName() const {
         string mn = module ? module->name+"::"+name : name;
         return mn + " " + type->getMangledName();
+    }
+
+    uint32_t Variable::getMangledNameHash() const {
+        auto mangledName = getMangledName();
+        return hash_blockz32((uint8_t *)mangledName.c_str());
     }
 
     bool Variable::isAccessUnused() const {
@@ -483,7 +488,7 @@ namespace das {
                 arg->type = arg->type->visit(vis);
                 arg->type = vis.visit(arg->type.get());
             }
-            if ( arg->init ) {
+            if ( arg->init && vis.canVisitArgumentInit(this,arg,arg->init.get()) ) {
                 vis.preVisitArgumentInit(this, arg, arg->init.get());
                 arg->init = arg->init->visit(vis);
                 if ( arg->init ) {

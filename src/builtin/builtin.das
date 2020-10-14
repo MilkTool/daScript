@@ -25,24 +25,42 @@ def resize(var Arr:array<auto(numT)>;newSize:int)
 def reserve(var Arr:array<auto(numT)>;newSize:int)
     __builtin_array_reserve(Arr,newSize,typeinfo(sizeof type<numT>))
 
-def push(var Arr:array<auto(numT)>;value:numT const;at:int=-1)
+def pop(var Arr:array<auto(numT)>)
+    resize(Arr, length(Arr)-1)  // resize will throw if negative
+
+def push(var Arr:array<auto(numT)>;value:numT const;at:int)
     static_if typeinfo(can_copy value)
         Arr[__builtin_array_push(Arr,at,typeinfo(sizeof type<numT>))] = value
     else
         concept_assert(false,"can't push value, which can't be copied")
 
-def pop(var Arr:array<auto(numT)>)
-    resize(Arr, length(Arr)-1)  // resize will throw if negative
+def push(var Arr:array<auto(numT)>;value:numT const)
+    static_if typeinfo(can_copy value)
+        Arr[__builtin_array_push_back(Arr,typeinfo(sizeof type<numT>))] = value
+    else
+        concept_assert(false,"can't push value, which can't be copied")
 
-def emplace(var Arr:array<auto(numT)>;var value:numT;at:int=-1)
+def emplace(var Arr:array<auto(numT)>;var value:numT;at:int)
     static_if typeinfo(can_move value)
         Arr[__builtin_array_push(Arr,at,typeinfo(sizeof type<numT>))] <- value
     else
         concept_assert(false,"can't emplace value, which can't be moved")
 
-def push_clone(var Arr:array<auto(numT)>;value:numT;at:int=-1)
+def emplace(var Arr:array<auto(numT)>;var value:numT)
+    static_if typeinfo(can_move value)
+        Arr[__builtin_array_push_back(Arr,typeinfo(sizeof type<numT>))] <- value
+    else
+        concept_assert(false,"can't emplace value, which can't be moved")
+
+def push_clone(var Arr:array<auto(numT)>;value:numT;at:int)
     static_if typeinfo(can_clone value)
         Arr[__builtin_array_push_zero(Arr,at,typeinfo(sizeof type<numT>))] := value
+    else
+        concept_assert(false,"can't push-clone value, which can't be moved")
+
+def push_clone(var Arr:array<auto(numT)>;value:numT)
+    static_if typeinfo(can_clone value)
+        Arr[__builtin_array_push_back_zero(Arr,typeinfo(sizeof type<numT>))] := value
     else
         concept_assert(false,"can't push-clone value, which can't be moved")
 
@@ -110,20 +128,13 @@ def binary_load(var obj; data:array<uint8>)
     concept_assert(typeinfo(is_ref_type obj),"can only serialize ref types")
     _builtin_binary_load(obj,data)
 
-def clone_to_move(clone_src:auto(TT)) : TT -const
-    var clone_dest : TT
+def clone_to_move(clone_src:auto(TT) implicit) : TT -const -#
+    var clone_dest : TT - #
     clone_dest := clone_src
     return <- clone_dest
 
-def clone_dim(var a;b:auto)
-    static_if typeinfo(is_dim a) & typeinfo(is_dim b) & typeinfo(dim a)==typeinfo(dim b)
-        for aV,bV in a,b
-            aV := bV
-    else
-        concept_assert(false,"can't clone this array")
-
-def clone_dim(var a;b:auto#)
-    static_if typeinfo(is_dim a) & typeinfo(is_dim b) & typeinfo(dim a)==typeinfo(dim b)
+def clone_dim(var a;b:auto implicit)
+    static_if typeinfo(is_dim a) && typeinfo(is_dim b) && typeinfo(dim a)==typeinfo(dim b)
         for aV,bV in a,b
             aV := bV
     else
@@ -224,6 +235,10 @@ def each ( rng : range ) : iterator<int>
     var it : iterator<int>
     _builtin_make_range_iterator(it,rng)
     return <- it
+
+def iter_range ( foo )
+    concept_assert(typeinfo(is_iterable foo),"requires iterable")
+    return range(_::length(foo)) // assuming length(foo) exists
 
 [generic,unsafe_operation]
 def each ( str : string ) : iterator<int>
@@ -372,25 +387,25 @@ def sort ( var a : array<auto(TT)>; cmp : block<(x,y:TT):bool> )
     __builtin_array_unlock(a)
 
 def find_index ( arr : array<auto(TT)> implicit; key : TT )
-    for i in range(0,length(arr))
+    for i in range(length(arr))
         if arr[i]==key
             return i
     return -1
 
 def find_index ( arr : auto(TT)[] implicit; key : TT )
-    for i in range(0,length(arr))
+    for i in range(length(arr))
         if arr[i]==key
             return i
     return -1
 
 def find_index_if ( arr : array<auto(TT)> implicit; blk : block<(key:TT):bool> )
-    for i in range(0,length(arr))
+    for i in range(length(arr))
         if invoke(blk,arr[i])
             return i
     return -1
 
 def find_index_if ( arr : auto(TT)[] implicit; blk : block<(key:TT):bool> )
-    for i in range(0,length(arr))
+    for i in range(length(arr))
         if invoke(blk,arr[i])
             return i
     return -1
@@ -409,6 +424,7 @@ def get_ptr ( src : smart_ptr<auto(TT)> ) : TT?
     unsafe
         return reinterpret<TT?> src
 
+[generic]
 def get_command_line_arguments : array<string>
     var args : array<string>
     builtin_get_command_line_arguments(args)

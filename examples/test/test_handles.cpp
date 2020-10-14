@@ -124,7 +124,7 @@ struct CheckRange : StructureAnnotation {
         if (args.getBoolOption("dummy",false) && !st->findField("dummy")) {
             st->fields.emplace_back("dummy", make_smart<TypeDecl>(Type::tInt),
                 nullptr /*init*/, AnnotationArgumentList(), false /*move_to_init*/, LineInfo());
-            st->filedLookup.clear();
+            st->fieldLookup.clear();
         }
         return true;
     }
@@ -493,11 +493,44 @@ void testPoint3Array(const TBlock<void,const Point3Array> & blk, Context * conte
     context->invoke(blk, args, nullptr);
 }
 
+void testFooArray(const TBlock<void,const FooArray> & blk, Context * context) {
+    FooArray arr;
+    for (int32_t x = 0; x != 10; ++x) {
+        TestObjectFoo p;
+        p.fooData = x;
+        arr.push_back(p);
+    }
+    vec4f args[1];
+    args[0] = cast<FooArray *>::from(&arr);
+    context->invoke(blk, args, nullptr);
+}
+
 void tableMojo ( TTable<char *,int> & in, const TBlock<void,TTable<char *,int>> & block, Context * context ) {
     vec4f args[1];
     args[0] = cast<Table *>::from(&in);
     context->invoke(block, args, nullptr);
 }
+
+class Point3ArrayAnnotation : public ManagedVectorAnnotation<Point3Array> {
+public:
+    Point3ArrayAnnotation(ModuleLibrary & lib)
+        : ManagedVectorAnnotation<Point3Array>("Point3Array",lib) {
+    }
+    virtual bool isIndexMutable ( const TypeDeclPtr & ) const override { return true; }
+};
+
+MAKE_TYPE_FACTORY(EntityId,EntityId);
+
+struct EntityIdAnnotation final: das::ManagedValueAnnotation <EntityId> {
+    EntityIdAnnotation() : ManagedValueAnnotation  ("EntityId","EntityId") {}
+    virtual void walk ( das::DataWalker & walker, void * data ) override {
+        if ( !walker.reading ) {
+            const EntityId * t = (EntityId *) data;
+            int32_t eidV = t->value;
+            walker.Int(eidV);
+        }
+    }
+};
 
 Module_UnitTest::Module_UnitTest() : Module("UnitTest") {
     ModuleLibrary lib;
@@ -525,9 +558,12 @@ Module_UnitTest::Module_UnitTest() : Module("UnitTest") {
     // test
     addAnnotation(make_smart<TestFunctionAnnotation>());
     // point3 array
-    addAnnotation(make_smart<ManagedVectorAnnotation<Point3Array>>("Point3Array",lib));
+    addAnnotation(make_smart<Point3ArrayAnnotation>(lib));
     addExtern<DAS_BIND_FUN(testPoint3Array)>(*this, lib, "testPoint3Array",
         SideEffects::modifyExternal, "testPoint3Array");
+    // foo array
+    addExtern<DAS_BIND_FUN(testFooArray)>(*this, lib, "testFooArray",
+        SideEffects::modifyExternal, "testFooArray");
     // utf8 print
     addExtern<DAS_BIND_FUN(builtin_printw)>(*this, lib, "printw",
         SideEffects::modifyExternal, "builtin_printw");
@@ -620,7 +656,10 @@ Module_UnitTest::Module_UnitTest() : Module("UnitTest") {
     // table mojo
     addExtern<DAS_BIND_FUN(tableMojo)>(*this, lib, "tableMojo",
         SideEffects::modifyExternal, "tableMojo");
-
+    // EntityId
+    addAnnotation(make_smart<EntityIdAnnotation>());
+    addExtern<DAS_BIND_FUN(make_invalid_id)>(*this, lib, "make_invalid_id",
+        SideEffects::none, "make_invalid_id");
     // and verify
     verifyAotReady();
 }

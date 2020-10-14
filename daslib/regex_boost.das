@@ -1,4 +1,5 @@
 options indenting = 4
+options remove_unused_symbols = false
 
 module regex_boost
 
@@ -20,8 +21,7 @@ class RegexReader : AstReaderMacro
             return true
     def override visit ( prog:ProgramPtr; mod:Module?; expr:smart_ptr<ExprReader> ) : ExpressionPtr
         var regex:Regex
-        peek(expr.sequence) <| $ ( seqStr )
-            regex_compile(regex,seqStr)
+        regex_compile(regex,"{expr.sequence}")
         if !is_valid(regex)
             delete regex
             macro_error(prog,expr.at,"regular expression did not compile")

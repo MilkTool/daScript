@@ -4,7 +4,7 @@
 using namespace das;
 
 void require_project_specific_modules();//link time resolved dependencies
-das::FileAccessPtr get_file_access();//link time resolved dependencies
+das::FileAccessPtr get_file_access( char * pak );//link time resolved dependencies
 
 #if !defined(DAS_GLOBAL_NEW) && defined(_MSC_VER) && !defined(_WIN64)
 
@@ -22,10 +22,6 @@ void operator delete(void * p) throw()
 static bool quiet = false;
 static bool json = false;
 
-static int cursor_x = 0;
-static int cursor_y = 0;
-static bool cursor = false;
-
 TextPrinter tout;
 
 bool saveToFile ( const string & fname, const string & str ) {
@@ -42,18 +38,11 @@ bool saveToFile ( const string & fname, const string & str ) {
 }
 
 bool compile ( const string & fn, const string & cppFn ) {
-    auto access = get_file_access();
+    auto access = get_file_access(nullptr);
     ModuleGroup dummyGroup;
     bool firstError = true;
     CodeOfPolicies policies;
-    policies.no_optimizations = cursor;
-    if ( auto program = compileDaScript(fn,access,tout,dummyGroup,cursor,policies) ) {
-        if ( cursor ) {
-            auto fi = access->getFileInfo(fn);
-            auto cinfo = program->cursor(LineInfo(fi,cursor_x,cursor_y,cursor_x,cursor_y));
-            tout << cinfo.reportJson();
-            return true;
-        }
+    if ( auto program = compileDaScript(fn,access,tout,dummyGroup,false,policies) ) {
         if ( program->failed() ) {
             if (json)
                 tout << "{ \"result\": \"failed to compile\",\n\"diagnostics\": [\n";
@@ -198,7 +187,8 @@ bool compile ( const string & fn, const string & cppFn ) {
   #define MAIN_FUNC_NAME main
 #endif
 
-int MAIN_FUNC_NAME(int argc, const char * argv[]) {
+int MAIN_FUNC_NAME(int argc, char * argv[]) {
+    setCommandLineArguments(argc, argv);
     #ifdef _MSC_VER
     _CrtSetReportMode(_CRT_ASSERT, 0);
     _set_abort_behavior(0, _WRITE_ABORT_MSG | _CALL_REPORTFAULT);
@@ -208,22 +198,15 @@ int MAIN_FUNC_NAME(int argc, const char * argv[]) {
         return -1;
     }
     if ( argc>3  ) {
+        bool scriptArgs = false;
         for (int ai = 3; ai != argc; ++ai) {
             if ( strcmp(argv[ai],"-q")==0 ) {
                 quiet = true;
             } else if ( strcmp(argv[ai],"-j")==0 ) {
                 json = true;
-            } else if ( strcmp(argv[ai],"-cursor")==0 ) {
-                if ( ai+2 < argc ) {
-                    cursor = true;
-                    cursor_x = atoi(argv[ai+1]);
-                    cursor_y = atoi(argv[ai+2]);
-                    ai += 2;
-                } else {
-                    tout << "-cursor requires X and Y\n";
-                    return -1;
-                }
-            } else {
+            } else if ( strcmp(argv[ai],"--")==0 ) {
+                scriptArgs = true;
+            } else if ( !scriptArgs ) {
                 tout << "unsupported option " << argv[ai];
                 return -1;
             }
@@ -234,8 +217,10 @@ int MAIN_FUNC_NAME(int argc, const char * argv[]) {
     NEED_MODULE(Module_Strings);
     NEED_MODULE(Module_Rtti);
     NEED_MODULE(Module_Ast);
+    NEED_MODULE(Module_Debugger);
     NEED_MODULE(Module_Random);
     NEED_MODULE(Module_Network);
+    NEED_MODULE(Module_UriParser);
     require_project_specific_modules();
     bool compiled = compile(argv[1], argv[2]);
     Module::Shutdown();

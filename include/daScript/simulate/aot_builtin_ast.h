@@ -390,17 +390,41 @@ namespace das {
 #undef IMPL_BIND_EXPR
 
     char * ast_describe_typedecl ( smart_ptr_raw<TypeDecl> t, bool d_extra, bool d_contracts, bool d_module, Context * context );
+    char * ast_describe_typedecl_cpp ( smart_ptr_raw<TypeDecl> t, bool d_substitureRef, bool d_skipRef, bool d_skipConst, bool d_redundantConst, Context * context );
     char * ast_describe_expression ( smart_ptr_raw<Expression> t, Context * context );
     char * ast_describe_function ( smart_ptr_raw<Function> t, Context * context );
     char * ast_das_to_string ( Type bt, Context * context );
     char * ast_find_bitfield_name ( smart_ptr_raw<TypeDecl> bft, Bitfield value, Context * context );
 
+    int32_t any_array_size ( void * _arr );
+    int32_t any_table_size ( void * _tab );
+    void any_array_foreach ( void * _arr, int stride, const TBlock<void,void *> & blk, Context * context );
+    void any_table_foreach ( void * _tab, int keyStride, int valueStride, const TBlock<void,void *,void *> & blk, Context * context );
+
+    int32_t get_variant_field_offset ( smart_ptr_raw<TypeDecl> td, int32_t index );
+    int32_t get_tuple_field_offset ( smart_ptr_raw<TypeDecl> td, int32_t index );
+
+    __forceinline void mks_vector_push ( MakeStruct & vec, MakeFieldDeclPtr value ) {
+        vec.push_back(value);
+    }
+    __forceinline void mks_vector_pop ( MakeStruct & vec ) {
+        vec.pop_back();
+    }
+    __forceinline void mks_vector_clear ( MakeStruct & vec ) {
+        vec.clear();
+    }
+    __forceinline void mks_vector_resize ( MakeStruct & vec, int32_t newSize ) {
+        vec.resize(newSize);
+    }
+
     Module * compileModule ( Context * context );
     smart_ptr_raw<Program> compileProgram ( Context * context );
 
+    DebugAgentPtr makeDebugAgent ( const void * pClass, const StructInfo * info, Context * context );
     Module * thisModule ( Context * context, LineInfoArg * lineinfo );
     smart_ptr_raw<Program> thisProgram ( Context * context );
     void astVisit ( smart_ptr_raw<Program> program, smart_ptr_raw<VisitorAdapter> adapter );
+    void astVisitFunction ( smart_ptr_raw<Function> func, smart_ptr_raw<VisitorAdapter> adapter );
     PassMacroPtr makePassMacro ( const char * name, const void * pClass, const StructInfo * info, Context * context );
     smart_ptr<VisitorAdapter> makeVisitor ( const void * pClass, const StructInfo * info, Context * context );
     void addModuleInferDirtyMacro ( Module * module, PassMacroPtr newM, Context * context );
@@ -420,6 +444,7 @@ namespace das {
     CallMacroPtr makeCallMacro ( const char * name, const void * pClass, const StructInfo * info, Context * context );
     void addFunctionFunctionAnnotation(smart_ptr_raw<Function> func, FunctionAnnotationPtr ann, Context* context);
     __forceinline ExpressionPtr clone_expression ( ExpressionPtr value ) { return value->clone(); }
+    __forceinline FunctionPtr clone_function ( FunctionPtr value ) { return value->clone(); }
     __forceinline TypeDeclPtr clone_type ( TypeDeclPtr value ) { return make_smart<TypeDecl>(*value); }
 
     template <>

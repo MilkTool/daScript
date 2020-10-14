@@ -1,4 +1,5 @@
 options indenting = 4
+options remove_unused_symbols = false
 
 module ast_boost
 
@@ -7,26 +8,22 @@ require ast
 require strings
 require daslib/strings_boost
 
-[export]
 def describe(list:AnnotationArgumentList)
     return join([{ for arg in list; "{arg.name}={get_annotation_argument_value(arg)}" }],",")
 
-[export]
 def describe(ann:AnnotationDeclaration)
     if ann.arguments.length != 0
         return "{ann.annotation.name}({describe(ann.arguments)})"
     else
         return "{ann.annotation.name}"
 
-[export]
 def describe(list:AnnotationList)
     return join([{ for arg in list; describe(*arg) }], ",")
 
-[export]
 def describe_bitfield(bf;merger:string = "")
     static_if typeinfo(is_bitfield bf)
         let bftd <- typeinfo(ast_typedecl bf)
-        return join( [{ for name,bit in bftd.argNames,range(0,32); "[{name}]";
+        return join( [{ for name,bit in bftd.argNames,range(32); "[{name}]";
             where (int(bf) & (1<<bit)) != 0 }], merger )
     else
         concept_assert(false,"requires bitfield")
@@ -37,7 +34,6 @@ def describe_function_short(func:FunctionPtr)
     delete args
     return res
 
-[export]
 def isExpression(t:TypeDeclPtr; top:bool=true) : bool
     if t==null
         return false
@@ -106,7 +102,7 @@ class TagStructureAnnotation : AstStructureAnnotation
                 return false
         return true
 
-[private,export]
+[private]
 def for_each_tag_function(mod:Module?; tag:string; blk : block<(var func:FunctionPtr):void> )
     for_each_function(mod, "") <| $ ( func )
         for ann in func.annotations
@@ -121,19 +117,17 @@ def for_each_tag_function(mod:Module?; tag:string; blk : block<(var func:Functio
                     if "{t.name}" == tag
                         invoke(blk, func)
 
-[export]
 def find_arg(argn:string; args:AnnotationArgumentList) : RttiValue
     for a in args
         if "{a.name}" == argn
             return get_annotation_argument_value(a)
     return RttiValue_nothing()
 
-[private,export]
+[private]
 def apply_tag_annotation(tag:string; ann:FunctionAnnotationPtr)
     for_each_tag_function(this_module(), tag) <| $ ( func )
         add_function_annotation(func, ann)
 
-[export]
 def setup_tag_annotation(name,tag:string; classPtr)
     var ann <- make_function_annotation(name, classPtr)
     apply_tag_annotation(tag, ann)
@@ -141,7 +135,6 @@ def setup_tag_annotation(name,tag:string; classPtr)
     unsafe
         delete ann
 
-[private]
 def find_unique_function ( mod : Module?; name : string )
     var res : FunctionPtr
     var count = 0
@@ -152,7 +145,16 @@ def find_unique_function ( mod : Module?; name : string )
         panic("more than one function encountered")
     return res
 
-[export]
+def find_unique_generic ( mod : Module?; name : string )
+    var res : FunctionPtr
+    var count = 0
+    for_each_generic(mod, name) <| $ ( func )
+        res <- func
+        count ++
+    if count > 1
+        panic("more than one generic function encountered")
+    return res
+
 def setup_macro(name: string; at:LineInfo) : ExprBlock?
     compiling_program().flags |= ProgramFlags needMacroModule
     var fn <- compiling_module() |> find_unique_function(name)
@@ -268,7 +270,7 @@ def walk_and_convert_dim ( data : uint8?; info:TypeDeclPtr; at:LineInfo ) : Expr
 	var einfo <- clone_type(info)
 	clear(einfo.dim)
 	var mkArr <- new [[ExprMakeArray() at=at, makeType := info]]
-	for x in range(0,total)
+	for x in range(total)
         unsafe
             var elem <- walk_and_convert(data + stride*x, einfo, at)
             push(mkArr.values, elem)
@@ -287,7 +289,7 @@ def walk_and_convert_pointer ( data : uint8?; info:TypeDeclPtr; at:LineInfo ) : 
 [private]
 def walk_and_convert_tuple ( data : uint8?; info:TypeDeclPtr; at:LineInfo ) : ExpressionPtr
     var mkArr <- new [[ExprMakeTuple() at=at, recordType<-clone_type(info)]]
-    for idx in range(0, info.argTypes.length)
+    for idx in range( info.argTypes.length)
         let offset = get_tuple_field_offset(info,idx)
         unsafe
             var elem <- walk_and_convert(data + offset, info.argTypes[idx], at)
@@ -416,7 +418,6 @@ def walk_and_convert ( data : uint8?; info:TypeDeclPtr; at:LineInfo ) : Expressi
     else
         return walk_and_convert_basic(data,info,at)
 
-[export]
 def convert_to_expression ( var value : auto&; at:LineInfo )
 	let info <- typeinfo(ast_typedecl value)
     unsafe

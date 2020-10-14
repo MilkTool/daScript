@@ -49,11 +49,11 @@ def test_re ( var regex:Regex; matches:array<string>; nonmatches:array<string> )
     for m in matches
         let ma = regex_match(regex, m)
         print("matching `{m}` -> {ma} {ma==-1 ? "failed" : "ok"}\n")
-        failed |= ma==-1
+        failed ||= ma==-1
     for m in nonmatches
         let ma = regex_match(regex, m)
         print("^matching `{m}` -> {ma} {ma!=-1 ? "failed" : "ok"}\n")
-        failed |= ma!=-1
+        failed ||= ma!=-1
     print("{failed ? "failed" : "ok"}\n\n")
     assert(!failed)
     delete regex
@@ -69,7 +69,7 @@ def test_group ( var regex:Regex; match:string; groups:array<string>)
     let tot = length(regex.groups) - 1
     assert(tot==length(groups),"group count mismatch")
     var failed = false
-    for x in range(0,tot)
+    for x in range(tot)
         let grp = regex_group(regex,x+1,match)
         let cgrp = groups[x]
         if grp != cgrp
