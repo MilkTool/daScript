@@ -112,6 +112,7 @@ namespace das {
         DECL_VISIT(ExprAddr);
         DECL_VISIT(ExprAssert);
         DECL_VISIT(ExprStaticAssert);
+        DECL_VISIT(ExprQuote);
         DECL_VISIT(ExprDebug);
         DECL_VISIT(ExprInvoke);
         DECL_VISIT(ExprErase);
@@ -327,6 +328,7 @@ namespace das {
         IMPL_BIND_EXPR(ExprAddr);
         IMPL_BIND_EXPR(ExprAssert);
         IMPL_BIND_EXPR(ExprStaticAssert);
+        IMPL_BIND_EXPR(ExprQuote);
         IMPL_BIND_EXPR(ExprDebug);
         IMPL_BIND_EXPR(ExprInvoke);
         IMPL_BIND_EXPR(ExprErase);
@@ -425,6 +427,7 @@ namespace das {
     smart_ptr_raw<Program> thisProgram ( Context * context );
     void astVisit ( smart_ptr_raw<Program> program, smart_ptr_raw<VisitorAdapter> adapter );
     void astVisitFunction ( smart_ptr_raw<Function> func, smart_ptr_raw<VisitorAdapter> adapter );
+    void astVisitExpression ( smart_ptr_raw<Expression> expr, smart_ptr_raw<VisitorAdapter> adapter );
     PassMacroPtr makePassMacro ( const char * name, const void * pClass, const StructInfo * info, Context * context );
     smart_ptr<VisitorAdapter> makeVisitor ( const void * pClass, const StructInfo * info, Context * context );
     void addModuleInferDirtyMacro ( Module * module, PassMacroPtr newM, Context * context );
@@ -437,6 +440,7 @@ namespace das {
     void forEachFunction ( Module * module, const char * name, const TBlock<void,FunctionPtr> & block, Context * context, LineInfoArg * lineInfo );
     void forEachGenericFunction ( Module * module, const char * name, const TBlock<void,FunctionPtr> & block, Context * context, LineInfoArg * lineInfo );
     bool addModuleFunction ( Module * module, FunctionPtr func, Context * context );
+    bool addModuleVariable ( Module * module, VariablePtr var, Context * );
     void ast_error ( ProgramPtr prog, const LineInfo & at, const char * message );
     void addModuleReaderMacro ( Module * module, ReaderMacroPtr newM, Context * context );
     ReaderMacroPtr makeReaderMacro ( const char * name, const void * pClass, const StructInfo * info, Context * context );
@@ -446,6 +450,7 @@ namespace das {
     __forceinline ExpressionPtr clone_expression ( ExpressionPtr value ) { return value->clone(); }
     __forceinline FunctionPtr clone_function ( FunctionPtr value ) { return value->clone(); }
     __forceinline TypeDeclPtr clone_type ( TypeDeclPtr value ) { return make_smart<TypeDecl>(*value); }
+    void forceAtRaw ( const smart_ptr_raw<Expression> & expr, const LineInfo & at );
 
     template <>
     struct das_iterator <AnnotationArgumentList> : das_iterator<vector<AnnotationArgument>> {

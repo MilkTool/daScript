@@ -25,9 +25,9 @@ class GetHintFnMacro : AstFunctionAnnotation
             unsafe
                 let arg2 = reinterpret<ExprConstString?>(call.arguments[1])
                 let hint = hash("{arg2.value}")
-                var mkc <- new [[ExprConstUInt() at=arg2.at, value=hint]]
-                push(call.arguments, mkc)
-                return <- call
+                emplace_new(call.arguments, new [[ExprConstUInt() at=arg2.at, value=hint]])
+                var res := call
+                return res
         return [[ExpressionPtr]]
 
 

@@ -108,14 +108,22 @@ namespace das {
                     getSideEffects(fn);
                 }
             }
+            for (auto & vI : mod.globals) {
+                auto & gv = vI.second;
+                if ( gv->init ) {
+                    TrackVariableFlags vaf;
+                    gv->init = gv->init->visit(vaf);
+                }
+            }
         }
     protected:
         void propagateAt ( ExprAt * at ) {
             if ( at->subexpr->type->isHandle() && at->subexpr->type->annotation->isIndexMutable(at->index->type.get()) ) {
                 propagateWrite(at->subexpr.get());
+            } else if ( at->subexpr->type->isGoodTableType() ) {
+                propagateWrite(at->subexpr.get());  // note: this makes it so tab[foo] modifies itself
             } else {
                 propagateRead(at->subexpr.get());
-                // propagateWrite(at->subexpr.get()); // note: this makes it so a[foo] modifies itself
             }
             propagateRead(at->index.get());
         }
@@ -345,11 +353,11 @@ namespace das {
             auto sef = getSideEffects(expr->func);
             if ( sef & uint32_t(SideEffects::modifyArgument) ) {
                 auto leftT = expr->left->type;
-                if ( leftT->isRefOrPointer() && !leftT->isConst() ) {
+                if ( leftT->isRefOrPointer() && !leftT->constant ) {
                     propagateWrite(expr->left.get());
                 }
                 auto rightT = expr->right->type;
-                if ( rightT->isRefOrPointer() && !rightT->isConst() ) {
+                if ( rightT->isRefOrPointer() && !rightT->constant ) {
                     propagateWrite(expr->right.get());
                 }
             }
@@ -360,15 +368,15 @@ namespace das {
             auto sef = expr->func ? getSideEffects(expr->func) : 0;
             if ( sef & uint32_t(SideEffects::modifyArgument) ) {
                 auto condT = expr->subexpr->type;
-                if ( condT->isRefOrPointer() && !condT->isConst() ) {
+                if ( condT->isRefOrPointer() && !condT->constant ) {
                     propagateWrite(expr->subexpr.get());
                 }
                 auto leftT = expr->left->type;
-                if ( leftT->isRefOrPointer() && !leftT->isConst() ) {
+                if ( leftT->isRefOrPointer() && !leftT->constant ) {
                     propagateWrite(expr->left.get());
                 }
                 auto rightT = expr->right->type;
-                if ( rightT->isRefOrPointer() && !rightT->isConst() ) {
+                if ( rightT->isRefOrPointer() && !rightT->constant ) {
                     propagateWrite(expr->right.get());
                 }
             }
@@ -397,13 +405,15 @@ namespace das {
                 if ( sef & uint32_t(SideEffects::modifyArgument) ) {
                     for ( size_t ai=0; ai != expr->arguments.size(); ++ai ) {
                         const auto & argT = expr->func->arguments[ai]->type;
-                        if ( argT->isRefOrPointer() && !argT->isConst() ) {
-                            if ( expr->func->knownSideEffects && !expr->func->builtIn ) {
-                                if ( expr->func->arguments[ai]->access_ref ) {
+                        if ( argT->canWrite() ) {
+                            if ( !expr->func->builtIn ) {
+                                if ( expr->func->knownSideEffects ) {
                                     propagateWrite(expr->arguments[ai].get());
                                 }
                             } else {
-                                propagateWrite(expr->arguments[ai].get());
+                                if ( expr->func->modifyArgument ) {
+                                    propagateWrite(expr->arguments[ai].get());
+                                }
                             }
                         }
                     }
@@ -433,13 +443,15 @@ namespace das {
             if ( sef & uint32_t(SideEffects::modifyArgument) ) {
                 for ( size_t ai=0; ai != expr->arguments.size(); ++ai ) {
                     const auto & argT = expr->func->arguments[ai]->type;
-                    if ( (argT->isRefOrPointer() || argT->baseType==anyArgument) && !argT->isConst() ) {
-                        if ( expr->func->knownSideEffects && !expr->func->builtIn ) {
-                            if ( expr->func->arguments[ai]->access_ref ) {
+                    if ( argT->canWrite() ) {
+                        if ( !expr->func->builtIn ) {
+                            if ( expr->func->knownSideEffects ) {
                                 propagateWrite(expr->arguments[ai].get());
                             }
                         } else {
-                            propagateWrite(expr->arguments[ai].get());
+                            if ( expr->func->modifyArgument ) {
+                                propagateWrite(expr->arguments[ai].get());
+                            }
                         }
                     }
                 }
@@ -450,7 +462,7 @@ namespace das {
             Visitor::preVisit(expr);
             for ( size_t ai=0; ai != expr->arguments.size(); ++ai ) {
                 const auto & argT = expr->arguments[ai]->type;
-                if ( argT->isRefOrPointer() && !argT->isConst() ) {  // should we propagate const?
+                if ( argT->isRefOrPointer() && !argT->constant ) {
                     propagateWrite(expr->arguments[ai].get());
                 }
             }
@@ -463,7 +475,7 @@ namespace das {
             }
             for ( size_t ai=0; ai != expr->arguments.size(); ++ai ) {
                 const auto & argT = expr->arguments[ai]->type;
-                if ( argT->isRefOrPointer() && !argT->isConst() ) {  // should we propagate const?
+                if ( argT->isRefOrPointer() && !argT->constant ) {
                     propagateWrite(expr->arguments[ai].get());
                 }
             }

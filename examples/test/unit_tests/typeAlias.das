@@ -25,6 +25,7 @@ def test:bool
     verify(UnitTest::doubleSamplePoint3(a) == float3(0,2,4))
     // also swizzle
     var foo : TestObjectFoo
+    assert(typeinfo(is_dim foo.fooArray) && typeinfo(dim foo.fooArray)==3)
     foo.hit = UnitTest::getSamplePoint3()
     assert(foo.hit.x==0.0 && foo.hit.y==1.0 && foo.hit.z==2.0)
     var qq = foo.hit
@@ -35,6 +36,8 @@ def test:bool
     assert(qq2.x==0.0 && qq2.y==1.0 && qq2.z==2.0)
     var qq3 = foo.hitPos
     assert(qq3.x==0.0 && qq3.y==1.0 && qq3.z==2.0)
+    let qq4 = foo.hitPosRef * float3(1)
+    assert(qq4.x==0.0 && qq4.y==1.0 && qq4.z==2.0)
     var hitDir = normalize(-foo.hit |> UnitTest::doubleSamplePoint3())
     let nhd = normalize(-float3(0,2,4))
     assert(hitDir.x==nhd.x && hitDir.y==nhd.y && hitDir.z==nhd.z)

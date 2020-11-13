@@ -50,7 +50,7 @@ namespace das {
         bool canAot() const;
         bool canAot( das_set<Structure *> & recAot ) const;
         bool isSameType ( const TypeDecl & decl, RefMatters refMatters, ConstMatters constMatters,
-            TemporaryMatters temporaryMatters, AllowSubstitute allowSubstitute = AllowSubstitute::no, bool topLevel = true ) const;
+            TemporaryMatters temporaryMatters, AllowSubstitute allowSubstitute = AllowSubstitute::no, bool topLevel = true, bool isPassType = false ) const;
         void sanitize();
         bool isExprType() const;
         bool isSimpleType () const;
@@ -68,6 +68,7 @@ namespace das {
         bool isRef() const;
         bool isRefType() const;
         bool isRefOrPointer() const { return isRef() || isPointer(); }
+        bool canWrite() const;
         bool isTemp( bool topLevel = true, bool refMatters = true) const;
         bool isTemp(bool topLevel, bool refMatters, das_set<Structure*> & dep) const;
         bool isTempType(bool refMatters = true) const;
@@ -393,6 +394,19 @@ namespace das {
             return t;
         }
     };
+
+    template <typename TT>
+    struct TSequence;
+
+    template <typename TT>
+    struct typeFactory<TSequence<TT>> {
+        static TypeDeclPtr make(const ModuleLibrary & lib) {
+            auto t = make_smart<TypeDecl>(Type::tIterator);
+            t->firstType = typeFactory<TT>::make(lib);
+            return t;
+        }
+    };
+
 
     template <typename TT, int dim>
     struct typeFactory<TT[dim]> {

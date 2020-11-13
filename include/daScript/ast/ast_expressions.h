@@ -190,6 +190,8 @@ namespace das
             };
             uint32_t            blockFlags = 0;
         };
+        Function *              inFunction = nullptr;       // moving this to the last position of a class
+                                                            // is a workaround of a compiler bug in 32-bit MVSC 2015
     };
 
     struct ExprVar : Expression {
@@ -906,6 +908,15 @@ namespace das
         virtual ExpressionPtr clone( const ExpressionPtr & expr = nullptr ) const override;
         virtual SimNode * simulate (Context & context) const override;
         bool isVerify = false;
+    };
+
+    struct ExprQuote : ExprLikeCall<ExprQuote> {
+        ExprQuote ( ) { __rtti = "ExprQuote"; };
+        ExprQuote ( const LineInfo & a, const string & name )
+            : ExprLikeCall<ExprQuote>(a,name) { __rtti = "ExprQuote"; }
+        virtual ExpressionPtr visit(Visitor & vis) override;
+        virtual ExpressionPtr clone( const ExpressionPtr & expr = nullptr ) const override;
+        virtual SimNode * simulate (Context & context) const override;
     };
 
     struct ExprStaticAssert : ExprLikeCall<ExprStaticAssert> {

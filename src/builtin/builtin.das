@@ -271,6 +271,7 @@ def each_ref ( lam : lambda<(var arg:auto(argT)?):bool> ) : iterator<argT &>
     _builtin_make_lambda_iterator(it, lam)
     return <- it
 
+[unused_argument(tt)]
 def each_enum(tt:auto(TT)) : iterator<TT -const -&>
     concept_assert(typeinfo(is_enum tt),"expecting each_enum(any enum value)")
     var iter : iterator<TT -const -&>
@@ -398,6 +399,12 @@ def find_index ( arr : auto(TT)[] implicit; key : TT )
             return i
     return -1
 
+def find_index ( arr : iterator<auto(TT)>; key : TT - & )
+    for o,i in arr,range(INT_MAX)
+        if o == key
+            return i
+    return -1
+
 def find_index_if ( arr : array<auto(TT)> implicit; blk : block<(key:TT):bool> )
     for i in range(length(arr))
         if invoke(blk,arr[i])
@@ -407,6 +414,12 @@ def find_index_if ( arr : array<auto(TT)> implicit; blk : block<(key:TT):bool> )
 def find_index_if ( arr : auto(TT)[] implicit; blk : block<(key:TT):bool> )
     for i in range(length(arr))
         if invoke(blk,arr[i])
+            return i
+    return -1
+
+def find_index_if ( arr : iterator<auto(TT)>; blk : block<(key:TT - &):bool> )
+    for o,i in arr,range(INT_MAX)
+        if invoke(blk,o)
             return i
     return -1
 

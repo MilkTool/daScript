@@ -11,6 +11,10 @@
 #include "daScript/simulate/runtime_table.h"
 #include "daScript/simulate/interop.h"
 
+#if defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable:4946)   // reinterpret_cast used between related classes
+#endif
 #if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic push
 #if __GNUC__>=9
@@ -45,20 +49,23 @@ namespace das {
 
     template <typename TT>
     __forceinline void das_zero ( TT & a ) {
-        memset(&a, 0, sizeof(TT));
+        using TTNC = typename remove_const<TT>::type;
+        memset(const_cast<TTNC *>(&a), 0, sizeof(TT));
     }
 
     template <typename TT, typename QQ>
     __forceinline void das_move ( TT & a, const QQ & b ) {
+        using TTNC = typename remove_const<TT>::type;
         static_assert(sizeof(TT)<=sizeof(QQ),"can't move from smaller type");
-        memcpy(&a, &b, sizeof(TT));
-        memset((TT *)&b, 0, sizeof(TT));
+        memcpy(const_cast<TTNC *>(&a), &b, sizeof(TT));
+        memset((TTNC *)&b, 0, sizeof(TT));
     }
 
     template <typename TT, typename QQ>
     __forceinline void das_copy ( TT & a, const QQ b ) {
+        using TTNC = typename remove_const<TT>::type;
         static_assert(sizeof(TT)<=sizeof(QQ),"can't copy from smaller type");
-        memcpy(&a, &b, sizeof(TT));
+        memcpy(const_cast<TTNC *>(&a), &b, sizeof(TT));
     }
 
     template <typename TT>
@@ -585,6 +592,7 @@ namespace das {
         using THIS_TYPE = TDim<TT, size>;
         enum { capacity = size };
         TT  data[size];
+        TDim() {}
         __forceinline TT & operator [] ( int32_t index ) {
             return data[index];
         }
@@ -880,6 +888,15 @@ namespace das {
                 return nullptr;
             }
         }
+    };
+
+    template <typename TT>
+    struct TSequence : Sequence {
+        __forceinline TSequence () { this->iter = nullptr; }
+        __forceinline TSequence ( Sequence && s ) { this->iter = s.iter; s.iter = nullptr; }
+        __forceinline TSequence ( const Sequence & s ) { this->iter = s.iter; }
+        __forceinline TSequence<TT> & operator = ( Sequence && s ) { this->iter = s.iter; s.iter = nullptr;return *this; }
+        __forceinline TSequence<TT> & operator = ( const Sequence & s ) { this->iter = s.iter; return *this; }
     };
 
     template <typename TT>
@@ -2120,6 +2137,54 @@ namespace das {
         return thh.erase(tab, key, hfn) != -1;
     }
 
+    template <typename VectorType>
+    struct StdVectorIterator : Iterator {
+        using OT = typename VectorType::value_type;
+        StdVectorIterator  ( VectorType * ar ) : array(ar) {}
+        virtual bool first ( Context &, char * _value ) override {
+            char ** value = (char **) _value;
+            char * data     = (char *) array->data();
+            uint32_t size   = (uint32_t) array->size();
+            *value          = data;
+            array_end       = data + size * sizeof(OT);
+            return (bool) size;
+        }
+        virtual bool next  ( Context &, char * _value ) override {
+            char ** value = (char **) _value;
+            char * data = *value + sizeof(OT);
+            *value = data;
+            return data != array_end;
+        }
+        virtual void close ( Context & context, char * _value ) override {
+            if ( _value ) {
+                char ** value = (char **) _value;
+                *value = nullptr;
+            }
+            context.heap->free((char *)this, sizeof(StdVectorIterator));
+        }
+        VectorType * array;
+        char * array_end = nullptr;
+    };
+
+    template <typename TT>
+    Sequence das_vector_each_sequence ( const vector<TT> & vec, Context * context ) {
+        using VectorIterator = StdVectorIterator<vector<TT>>;
+        char * iter = context->heap->allocate(sizeof(VectorIterator));
+        context->heap->mark_comment(iter, "std::vector<> iterator");
+        new (iter) VectorIterator((vector<TT> *)&vec);
+        return { (Iterator *) iter };
+    }
+
+    template <typename TT>
+    __forceinline TSequence<TT &> das_vector_each ( vector<TT> & vec, Context * context ) {
+        return das_vector_each_sequence(vec,context);
+    }
+
+    template <typename TT>
+    __forceinline TSequence<const TT &> das_vector_each_const ( const vector<TT> & vec, Context * context ) {
+        return das_vector_each_sequence(vec,context);
+    }
+
     template <typename TT, typename QQ>
     __forceinline void das_vector_push ( vector<TT> & vec, const QQ & value ) {
         vec.push_back(value);
@@ -2128,6 +2193,11 @@ namespace das {
     template <typename TT, typename QQ>
     __forceinline void das_vector_push_value ( vector<TT> & vec, QQ value ) {
         vec.push_back(value);
+    }
+
+    template <typename TT, typename QQ>
+    __forceinline void das_vector_emplace ( vector<TT> & vec, QQ & value ) {
+        vec.emplace_back(move(value));
     }
 
     template <typename TT>
@@ -2160,6 +2230,9 @@ namespace das {
     void set_das_string(string & str, const char * bs);
 }
 
+#if defined(_MSC_VER)
+#pragma warning(pop)
+#endif
 #if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic pop
 #endif

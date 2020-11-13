@@ -787,6 +787,26 @@ namespace das {
         return cexpr;
     }
 
+    // ExprQuote
+
+    ExpressionPtr ExprQuote::visit(Visitor & vis) {
+        vis.preVisit(this);
+        if ( vis.canVisitQuoteSubexpression(this) ) {
+            for ( auto & arg : arguments ) {
+                vis.preVisitLooksLikeCallArg(this, arg.get(), arg==arguments.back());
+                arg = arg->visit(vis);
+                arg = vis.visitLooksLikeCallArg(this, arg.get(), arg==arguments.back());
+            }
+        }
+        return vis.visit(this);
+    }
+
+    ExpressionPtr ExprQuote::clone( const ExpressionPtr & expr ) const {
+        auto cexpr = clonePtr<ExprQuote>(expr);
+        ExprLooksLikeCall::clone(cexpr);
+        return cexpr;
+    }
+
     // ExprDebug
 
     ExpressionPtr ExprDebug::clone( const ExpressionPtr & expr ) const {
@@ -1212,6 +1232,7 @@ namespace das {
         }
         cexpr->annotations = annotations;
         cexpr->maxLabelIndex = maxLabelIndex;
+        cexpr->inFunction = inFunction;
         return cexpr;
     }
 
@@ -2250,7 +2271,7 @@ namespace das {
             candidates += describeCandidates(handles, false);
             candidates += describeCandidates(enums, false);
             candidates += describeCandidates(aliases, false);
-            error("undefined type "+name,candidates,"",
+            error("undefined make type declaration type "+name,candidates,"",
                 at,CompilationError::type_not_found);
             return nullptr;
         } else if ( structs.size() ) {

@@ -9,7 +9,7 @@ namespace das {
     void builtin_print ( char * text, Context * context );
     vec4f builtin_sprint ( Context & context, SimNode_CallBase * call, vec4f * args );
     vec4f builtin_breakpoint ( Context & context, SimNode_CallBase * call, vec4f * );
-    void builtin_stackwalk ( Context * context, LineInfoArg * lineInfo );
+    void builtin_stackwalk ( bool args, bool vars, Context * context, LineInfoArg * lineInfo );
     void builtin_terminate ( Context * context );
     int builtin_table_size ( const Table & arr );
     int builtin_table_capacity ( const Table & arr );
@@ -55,7 +55,7 @@ namespace das {
 
     template <typename TT>
     __forceinline void builtin_sort ( TT * data, int32_t length ) {
-        sort ( data, data + length );
+        if ( length>1 ) sort ( data, data + length );
     }
 
     void builtin_sort_string ( void * data, int32_t length );
@@ -63,6 +63,7 @@ namespace das {
 
     template <typename TT>
     void builtin_sort_cblock ( TT * data, int32_t length, const TBlock<bool,TT,TT> & cmp, Context * context ) {
+        if ( length<=1 ) return;
         vec4f bargs[2];
         context->invokeEx(cmp, bargs, nullptr, [&](SimNode * code) {
             sort ( data, data+length, [&](TT x, TT y) -> bool {

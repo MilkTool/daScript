@@ -32,6 +32,7 @@ namespace das {
     public:
         InferTypes( const ProgramPtr & prog ) : FoldingVisitor(prog ) {
             enableInferTimeFolding = prog->options.getBoolOption("infer_time_folding",true);
+            disableAot = prog->options.getBoolOption("no_aot",false);
         }
         bool finished() const { return !needRestart; }
     protected:
@@ -50,6 +51,7 @@ namespace das {
         const Structure *       cppLayoutParent = nullptr;
         bool                    needRestart = false;
         bool                    enableInferTimeFolding;
+        bool                    disableAot;
         Expression *            lastEnuValue = nullptr;
         int32_t                 unsafeDepth = 0;
     public:
@@ -386,6 +388,7 @@ namespace das {
                         return nullptr;
                     }
                 }
+                if ( !resT->firstType ) return nullptr;
                 resT->firstType = inferAlias(decl->firstType,fptr,aliases);
                 if ( !resT->firstType ) return nullptr;
             } else if ( decl->baseType==Type::tVariant || decl->baseType==Type::tTuple ) {
@@ -663,7 +666,7 @@ namespace das {
             }
             // compare types which don't need inference
             auto tempMatters = argType->implicit ? TemporaryMatters::no : TemporaryMatters::yes;
-            if ( !argType->isSameType(*passType, RefMatters::no, ConstMatters::no, tempMatters, AllowSubstitute::yes) ) {
+            if ( !argType->isSameType(*passType, RefMatters::no, ConstMatters::no, tempMatters, AllowSubstitute::yes, true, true) ) {
                 return false;
             }
             // can't pass non-ref to ref
@@ -1259,7 +1262,7 @@ namespace das {
                     decl.type->sanitize();
                     reportAstChanged();
                 } else {
-                    error("undefined type " + decl.type->describe(),  "", "",
+                    error("undefined structure field type " + decl.type->describe(),  "", "",
                         decl.at, CompilationError::invalid_structure_field_type );
                 }
             }
@@ -1367,7 +1370,7 @@ namespace das {
                     var->type = aT;
                     reportAstChanged();
                 } else {
-                    error("undefined type " + var->type->describe(),  "", "",
+                    error("undefined global variable type " + var->type->describe(),  "", "",
                         var->at, CompilationError::invalid_type );
                 }
             }
@@ -1465,6 +1468,7 @@ namespace das {
             unsafeDepth = 0;
             func = f;
             func->hasReturn = false;
+            func->noAot |= disableAot;
         }
         virtual void preVisitArgument ( Function * fn, const VariablePtr & var, bool lastArg ) override {
             Visitor::preVisitArgument(fn, var, lastArg);
@@ -1473,7 +1477,7 @@ namespace das {
                     var->type = aT;
                     reportAstChanged();
                 } else {
-                    error("undefined type " + var->type->describe(),  "", "",
+                    error("undefined function argument type " + var->type->describe(),  "", "",
                         var->at, CompilationError::type_not_found );
                 }
             }
@@ -1533,7 +1537,7 @@ namespace das {
                     func->result->sanitize();
                     reportAstChanged();
                 } else {
-                    error("undefined type " + func->result->describe(),  "", "",
+                    error("undefined function result type " + func->result->describe(),  "", "",
                         func->at, CompilationError::type_not_found );
                 }
             }
@@ -1734,7 +1738,7 @@ namespace das {
                         expr->funcType = aT;
                         reportAstChanged();
                     } else {
-                        error("undefined type " + expr->funcType->describe(),  "", "",
+                        error("undefined address expression type " + expr->funcType->describe(),  "", "",
                             expr->at, CompilationError::type_not_found);
                         return Visitor::visit(expr);
                     }
@@ -1924,6 +1928,21 @@ namespace das {
             expr->type = make_smart<TypeDecl>(Type::tVoid);
             return Visitor::visit(expr);
         }
+    // ExprQuote
+        virtual ExpressionPtr visit ( ExprQuote * expr ) override {
+            if ( expr->arguments.size()!=1  ) {
+                error("quote(expr) only. can only return one expression tree",  "", "",
+                    expr->at, CompilationError::invalid_argument_count);
+                return Visitor::visit(expr);
+            }
+            // infer
+            expr->type = make_smart<TypeDecl>(Type::tPointer);
+            expr->type->smartPtr = true;
+            expr->type->smartPtrNative = true;
+            expr->type->firstType = make_smart<TypeDecl>(Type::tHandle);
+            expr->type->firstType->annotation = (TypeAnnotation *) Module::require("ast")->findAnnotation("Expression").get();
+            return Visitor::visit(expr);
+        }
     // ExprDebug
         virtual ExpressionPtr visit ( ExprDebug * expr ) override {
             if ( expr->argumentsFailedToInfer ) return Visitor::visit(expr);
@@ -1971,7 +1990,7 @@ namespace das {
                     expr->iterType = aT;
                     reportAstChanged();
                 } else {
-                    error("undefined type " + expr->iterType->describe(),  "", "",
+                    error("undefined generator type " + expr->iterType->describe(),  "", "",
                         expr->at, CompilationError::type_not_found);
                     return Visitor::visit(expr);
                 }
@@ -2422,7 +2441,7 @@ namespace das {
                     reportAstChanged();
                     return Visitor::visit(expr);
                 } else {
-                    error("undefined type " + expr->typeexpr->describe(), "", "",
+                    error("undefined is expression type " + expr->typeexpr->describe(), "", "",
                           expr->at, CompilationError::type_not_found);
                     return Visitor::visit(expr);
                 }
@@ -2472,7 +2491,7 @@ namespace das {
                     reportAstChanged();
                     return Visitor::visit(expr);
                 } else {
-                    error("undefined type " + expr->typeexpr->describe(), "", "",
+                    error("undefined typeinfo type expression type " + expr->typeexpr->describe(), "", "",
                           expr->at, CompilationError::type_not_found);
                     return Visitor::visit(expr);
                 }
@@ -2656,7 +2675,7 @@ namespace das {
                         return make_smart<ExprConstBool>(expr->at, expr->typeexpr->structType->findField(expr->subtrait));
                     } else if ( expr->typeexpr->isHandle() ) {
                         reportAstChanged();
-                        auto ft = expr->typeexpr->annotation->makeFieldType(expr->subtrait);
+                        auto ft = expr->typeexpr->annotation->makeFieldType(expr->subtrait, false);
                         return make_smart<ExprConstBool>(expr->at, ft!=nullptr);
                     } else {
                         if ( expr->trait=="safe_has_field" ) {
@@ -3058,7 +3077,7 @@ namespace das {
                     expr->castType->sanitize();
                     reportAstChanged();
                 } else {
-                    error("undefined type " + expr->castType->describe(),  "", "",
+                    error("undefined cast type " + expr->castType->describe(),  "", "",
                         expr->at, CompilationError::type_not_found);
                     return Visitor::visit(expr);
                 }
@@ -3159,7 +3178,7 @@ namespace das {
                     expr->typeexpr->sanitize();
                     reportAstChanged();
                 } else {
-                    error("undefined type " + expr->typeexpr->describe(), "", "",
+                    error("undefined new expression type " + expr->typeexpr->describe(), "", "",
                           expr->at, CompilationError::type_not_found);
                     return Visitor::visit(expr);
                 }
@@ -3480,6 +3499,7 @@ namespace das {
             }
             scopes.push_back(block);
             pushVarStack();
+            block->inFunction = func.get();
         }
         virtual void preVisitBlockFinal ( ExprBlock * block ) override {
             Visitor::preVisitBlockFinal(block);
@@ -3529,7 +3549,7 @@ namespace das {
                     var->type = aT;
                     reportAstChanged();
                 } else {
-                    error("undefined type " + var->type->describe(),  "", "",
+                    error("undefined block argument type " + var->type->describe(),  "", "",
                         var->at, CompilationError::type_not_found);
                 }
             }
@@ -3789,7 +3809,7 @@ namespace das {
                 expr->fieldIndex = index;
             } else if ( valT->isHandle() ) {
                 expr->annotation = valT->annotation;
-                expr->type = expr->annotation->makeFieldType(expr->name);
+                expr->type = expr->annotation->makeFieldType(expr->name, valT->constant);
             } else if ( valT->isStructure() ) {
                 expr->field = valT->structType->findField(expr->name);
             } else if ( valT->isPointer() ) {
@@ -3799,7 +3819,7 @@ namespace das {
                     expr->field = valT->firstType->structType->findField(expr->name);
                 } else if ( valT->firstType->isHandle() ) {
                     expr->annotation = valT->firstType->annotation;
-                    expr->type = expr->annotation->makeFieldType(expr->name);
+                    expr->type = expr->annotation->makeFieldType(expr->name, expr->value->type->constant);
                 } else if ( valT->firstType->isGoodTupleType() ) {
                     int index = expr->tupleFieldIndex();
                     if ( index==-1 || index>=int(valT->firstType->argTypes.size()) ) {
@@ -3899,7 +3919,7 @@ namespace das {
                 expr->type = make_smart<TypeDecl>(*expr->field->type);
             } else if ( valT->firstType->isHandle() ) {
                 expr->annotation = valT->firstType->annotation;
-                expr->type = expr->annotation->makeSafeFieldType(expr->name);
+                expr->type = expr->annotation->makeSafeFieldType(expr->name, valT->constant);
                 if ( !expr->type ) {
                     error("can't safe get field " + expr->name, "", "",
                         expr->at, CompilationError::cant_get_field);
@@ -4112,6 +4132,14 @@ namespace das {
                 || (op=="<<=") || (op==">>=") || (op=="<<<=") || (op==">>>=");
         }
 
+        bool canOperateOnPointers ( const TypeDeclPtr & leftType, const TypeDeclPtr & rightType, TemporaryMatters tmatter ) const {
+            if ( leftType->baseType==Type::tPointer ) {
+                return leftType->isSameType(*rightType, RefMatters::no, ConstMatters::no, tmatter, AllowSubstitute::yes);
+            } else {
+                return leftType->isSameType(*rightType, RefMatters::no, ConstMatters::no, tmatter, AllowSubstitute::no);
+            }
+        }
+
         bool isSameSmartPtrType ( const TypeDeclPtr & lt, const TypeDeclPtr & rt, bool leftOnly = false ) {
             auto lt_smart = lt->smartPtr;
             auto rt_smart = rt->smartPtr;
@@ -4124,7 +4152,7 @@ namespace das {
             }
             lt->smartPtr = false;
             rt->smartPtr = false;
-            bool res =  canCopyOrMoveType(lt,rt,TemporaryMatters::no);
+            bool res =  canOperateOnPointers(lt,rt,TemporaryMatters::no);
             lt->smartPtr = lt_smart;
             rt->smartPtr = rt_smart;
             return res;
@@ -4291,9 +4319,9 @@ namespace das {
     // ExprMove
         bool canCopyOrMoveType ( const TypeDeclPtr & leftType, const TypeDeclPtr & rightType, TemporaryMatters tmatter ) const {
             if ( leftType->baseType==Type::tPointer ) {
-                return leftType->isSameType(*rightType, RefMatters::no, ConstMatters::no, tmatter, AllowSubstitute::yes);
+                return leftType->isSameType(*rightType, RefMatters::no, ConstMatters::no, tmatter, AllowSubstitute::yes, true, true);
             } else {
-                return leftType->isSameType(*rightType, RefMatters::no, ConstMatters::no, tmatter, AllowSubstitute::no);
+                return leftType->isSameType(*rightType, RefMatters::no, ConstMatters::no, tmatter, AllowSubstitute::no, true, true);
             }
         }
         string moveErrorInfo(ExprMove * expr) const {
@@ -4967,7 +4995,7 @@ namespace das {
                     var->type->sanitize();
                     reportAstChanged();
                 } else {
-                    error("undefined type " + var->type->describe(), "", "",
+                    error("undefined let type " + var->type->describe(), "", "",
                         var->at, CompilationError::type_not_found);
                 }
             }
@@ -5827,7 +5855,7 @@ namespace das {
                         decl->at, CompilationError::cant_get_field);
                 }
             } else if ( expr->makeType->baseType == Type::tHandle ) {
-                if ( auto fldt = expr->makeType->annotation->makeFieldType(decl->name) ) {
+                if ( auto fldt = expr->makeType->annotation->makeFieldType(decl->name, false) ) {
                     if ( !fldt->isRef() ) {
                         error("field is a property, not a value; " + decl->name, "", "",
                             decl->at, CompilationError::cant_get_field);
@@ -5860,7 +5888,7 @@ namespace das {
                     expr->makeType = aT;
                     reportAstChanged();
                 } else {
-                    error("undefined type " + expr->makeType->describe(),  "", "",
+                    error("undefined [[ ]] expression type " + expr->makeType->describe(),  "", "",
                         expr->makeType->at, CompilationError::type_not_found );
                 }
             }

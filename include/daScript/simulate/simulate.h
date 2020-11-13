@@ -16,9 +16,11 @@ namespace das
     #define DAS_BIND_FUN(a)                     decltype(&a), a
     #define DAS_BIND_PROP(BIGTYPE,FIELDNAME)    decltype(&BIGTYPE::FIELDNAME), &BIGTYPE::FIELDNAME
 
-    template <class T, class M> M get_member_type(M T:: *);
-    #define GET_TYPE_OF(mem) decltype(das::get_member_type(mem))
-    #define DAS_BIND_FIELD(BIGTYPE,FIELDNAME)   GET_TYPE_OF(&BIGTYPE::FIELDNAME),offsetof(BIGTYPE,FIELDNAME)
+    #define DAS_BIND_FIELD(BIGTYPE,FIELDNAME)   decltype(das::declval<BIGTYPE>().FIELDNAME), offsetof(BIGTYPE,FIELDNAME)
+
+    #ifndef DAS_ENABLE_SMART_PTR_TRACKING
+    #define DAS_ENABLE_SMART_PTR_TRACKING   0
+    #endif
 
     #ifndef DAS_ENABLE_STACK_WALK
     #define DAS_ENABLE_STACK_WALK   1
@@ -211,6 +213,8 @@ namespace das
 
     void installDebugAgent ( DebugAgentPtr );
     void tickDebugAgent ( );
+
+    void dumpTrackingLeaks();
 
     class Context {
         template <typename TT> friend struct SimNode_GetGlobalR2V;
@@ -637,6 +641,10 @@ namespace das
         uint32_t stopFlags = 0;
         uint32_t gotoLabel = 0;
         vec4f result;
+    public:
+#if DAS_ENABLE_SMART_PTR_TRACKING
+        static vector<smart_ptr<ptr_ref_count>> sptrAllocations;
+#endif
     };
 
     void tickDebugAgent ( );

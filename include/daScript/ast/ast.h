@@ -332,11 +332,12 @@ namespace das
         virtual bool isShareable ( ) const { return true; }
         virtual bool isSmart() const { return false; }
         virtual bool canSubstitute ( TypeAnnotation * /* passType */ ) const { return false; }
+        virtual bool canBeSubstituted ( TypeAnnotation * /* passType */ ) const { return false; }
         virtual string getSmartAnnotationCloneFunction () const { return ""; }
         virtual size_t getSizeOf() const { return sizeof(void *); }
         virtual size_t getAlignOf() const { return 1; }
-        virtual TypeDeclPtr makeFieldType ( const string & ) const { return nullptr; }
-        virtual TypeDeclPtr makeSafeFieldType ( const string & ) const { return nullptr; }
+        virtual TypeDeclPtr makeFieldType ( const string &, bool ) const { return nullptr; }
+        virtual TypeDeclPtr makeSafeFieldType ( const string &, bool ) const { return nullptr; }
         virtual TypeDeclPtr makeIndexType ( const ExpressionPtr & /*src*/, const ExpressionPtr & /*idx*/ ) const { return nullptr; }
         virtual TypeDeclPtr makeIteratorType ( const ExpressionPtr & /*src*/ ) const { return nullptr; }
         // aot
@@ -956,12 +957,14 @@ namespace das
         bool only_fast_aot = false;
         bool aot_order_side_effects = false;
         bool no_unused_function_arguments = false;
+        bool no_unused_block_arguments = false;
         bool smart_pointer_by_value_unsafe = false;     // is passing smart_ptr by value unsafe?
         bool allow_block_variable_shadowing = false;
         bool allow_shared_lambda = false;
     // environment
         bool no_optimizations = false;                  // disable optimizations, regardless of settings
         bool fail_on_no_aot = true;                     // AOT link failure is error
+        bool fail_on_lack_of_aot_export = false;        // remove_unused_symbols = false is missing in the module, which is passed to AOT
     // debugger
         //  when enabled
         //      1. disables [fastcall]

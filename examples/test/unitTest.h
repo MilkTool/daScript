@@ -67,24 +67,33 @@ __forceinline void project_to_nearest_navmesh_point(Point3 & a, float t) { a = P
 
 struct TestObjectFoo {
     Point3 hit;
-    int fooData;
+    int32_t fooData;
     SomeEnum_16 e16;
     TestObjectFoo * foo_loop = nullptr;
+    int32_t fooArray[3];
+    TestObjectFoo() {}
     int propAdd13() {
         return fooData + 13;
     }
     __forceinline Point3 hitPos() const { return hit; }
+    __forceinline const Point3 & hitPosRef() const { return hit; }
     __forceinline bool operator == ( const TestObjectFoo & obj ) const {
         return fooData == obj.fooData;
     }
     __forceinline bool operator != ( const TestObjectFoo & obj ) const {
         return fooData != obj.fooData;
     }
+    __forceinline bool isReadOnly() { return false; }
+    __forceinline bool isReadOnly() const { return true; }
+    __forceinline TestObjectFoo * getLoop() { return foo_loop; }
+    __forceinline const TestObjectFoo * getLoop() const { return foo_loop; }
 };
 
 typedef das::vector<TestObjectFoo> FooArray;
 
 void testFooArray(const das::TBlock<void, const FooArray> & blk, das::Context * context);
+
+__forceinline void set_foo_data (TestObjectFoo * obj, int32_t data ) { obj->fooData = data; }
 
 struct TestObjectSmart : public das::ptr_ref_count {
      int fooData = 1234;

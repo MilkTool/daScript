@@ -95,6 +95,8 @@ namespace das
 
     ,   module_not_found                        =   30901       //  require wtf
     ,   module_already_has_a_name               =   30902       //  module a; module aa
+    ,   module_does_not_export_unused_symbols   =   30903       //  options remove_unused_symbols = false is missing from the module
+    ,   module_does_not_have_a_name             =   30904       //  missing module name for AOT module
 
     ,   cant_new_handle                         =   31001       //  new Handle
     ,   bad_delete                              =   31002       //  delete ;
@@ -140,6 +142,7 @@ namespace das
     ,   no_global_variables                     =   40205       // var a = ...
     ,   unused_function_argument                =   40206       // def foo ( a ) ..... /* no a here */
     ,   unsafe_function                         =   40207       // [unsafe] when code of policies prohibits
+    ,   unused_block_argument                   =   40208       // foo() <| $ ( a ) ..... /* no a here */
 
     ,   too_many_infer_passes                   =   41000
 

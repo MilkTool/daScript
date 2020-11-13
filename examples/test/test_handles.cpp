@@ -84,9 +84,19 @@ struct TestObjectFooAnnotation : ManagedStructureAnnotation <TestObjectFoo> {
         addField<DAS_BIND_MANAGED_FIELD(e16)>("e16");
         addProperty<DAS_BIND_MANAGED_PROP(propAdd13)>("propAdd13");
         addProperty<DAS_BIND_MANAGED_PROP(hitPos)>("hitPos");
+        addProperty<DAS_BIND_MANAGED_PROP(hitPosRef)>("hitPosRef");
+        addPropertyExtConst<
+            bool (TestObjectFoo::*)(), &TestObjectFoo::isReadOnly,
+            bool (TestObjectFoo::*)() const, &TestObjectFoo::isReadOnly
+        >("isReadOnly","isReadOnly");
+        addField<DAS_BIND_MANAGED_FIELD(fooArray)>("fooArray");
     }
     void init() {
         addField<DAS_BIND_MANAGED_FIELD(foo_loop)>("foo_loop");
+        addPropertyExtConst<
+            TestObjectFoo * (TestObjectFoo::*)(), &TestObjectFoo::getLoop,
+            const TestObjectFoo * (TestObjectFoo::*)() const, &TestObjectFoo::getLoop
+        >("getLoop","getLoop");
     }
     virtual bool isLocal() const override { return true; }
     virtual bool canMove() const override { return true; }
@@ -270,15 +280,15 @@ struct IntFieldsAnnotation : StructureTypeAnnotation {
         }
         return !fail;
     }
-    virtual TypeDeclPtr makeFieldType ( const string & na ) const override {
-        if ( auto pF = makeSafeFieldType(na) ) {
+    virtual TypeDeclPtr makeFieldType ( const string & na, bool isConst ) const override {
+        if ( auto pF = makeSafeFieldType(na, isConst) ) {
             pF->ref = true;
             return pF;
         } else {
             return nullptr;
         }
     }
-    virtual TypeDeclPtr makeSafeFieldType ( const string & na ) const override {
+    virtual TypeDeclPtr makeSafeFieldType ( const string & na, bool ) const override {
         auto pF = structureType->findField(na);
         return pF ? make_smart<TypeDecl>(*pF->type) : nullptr;
     }
@@ -564,6 +574,8 @@ Module_UnitTest::Module_UnitTest() : Module("UnitTest") {
     // foo array
     addExtern<DAS_BIND_FUN(testFooArray)>(*this, lib, "testFooArray",
         SideEffects::modifyExternal, "testFooArray");
+    addExtern<DAS_BIND_FUN(set_foo_data)>(*this, lib, "set_foo_data",
+        das::SideEffects::modifyArgument, "set_foo_data");
     // utf8 print
     addExtern<DAS_BIND_FUN(builtin_printw)>(*this, lib, "printw",
         SideEffects::modifyExternal, "builtin_printw");

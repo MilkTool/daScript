@@ -405,7 +405,7 @@ namespace das
             stream << " explicit";
         }
         if ( explicitConst ) {
-            stream << "!";
+            stream << " =const";
         }
         if (contracts == DescribeContracts::yes) {
             if (removeConstant || removeRef || removeDim || removeTemporary) {
@@ -864,7 +864,8 @@ namespace das
              ConstMatters constMatters,
              TemporaryMatters temporaryMatters,
              AllowSubstitute allowSubstitute,
-             bool topLevel ) const {
+             bool topLevel,
+             bool isPassType ) const {
         if ( topLevel && !isRef() && !isPointer() ) {
             constMatters = ConstMatters::no;
         }
@@ -877,6 +878,8 @@ namespace das
         if ( baseType==Type::tHandle && annotation!=decl.annotation ) {
             if ( !isExplicit && (allowSubstitute == AllowSubstitute::yes) ) {
                 if ( annotation->canSubstitute(decl.annotation) ) {
+                    return true;
+                } else if ( decl.annotation->canBeSubstituted(annotation) ) {
                     return true;
                 }
             }
@@ -897,8 +900,12 @@ namespace das
             bool iAmVoid = !firstType || firstType->isVoid();
             bool heIsVoid = !decl.firstType || decl.firstType->isVoid();
             if ( topLevel ) {
+                ConstMatters pcm = ConstMatters::yes;
+                if ( isPassType && firstType && firstType->constant ) {
+                    pcm = ConstMatters::no;
+                }
                 if ( !iAmVoid && !heIsVoid &&
-                        !firstType->isSameType(*decl.firstType,RefMatters::yes,ConstMatters::yes,
+                        !firstType->isSameType(*decl.firstType,RefMatters::yes,pcm,
                             TemporaryMatters::yes,isExplicit ? AllowSubstitute::no : allowSubstitute,false) ) {
                     return false;
                 }
@@ -989,6 +996,16 @@ namespace das
             }
         }
         return true;
+    }
+
+    bool TypeDecl::canWrite() const {
+        bool cw = isRef() || baseType==Type::tPointer || baseType==Type::anyArgument;
+        if ( baseType!=Type::tPointer ) {
+            cw &= !constant;
+        } else if ( firstType ) {
+            cw &= !firstType->constant;
+        }
+        return cw;
     }
 
     // validate swizzle mask and build mask type

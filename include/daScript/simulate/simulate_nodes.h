@@ -47,7 +47,7 @@ namespace das {
                 };
                 uint32_t    offset;
             };
-            vec4f __dummy = v_zero();
+            vec4f __dummy;
         };
         SimSourceType   type = SimSourceType::sSimNode;
         union {
@@ -56,6 +56,9 @@ namespace das {
             };
             uint32_t    flags = 0;
         };
+        __forceinline SimSource() {
+            __dummy = v_zero();         // this is not an inline initialization to work around EDG compiler
+        }
         void visit ( SimVisitor & vis );
         // construct
         __forceinline void setSimNode(SimNode * se) {
@@ -237,6 +240,9 @@ namespace das {
             DAS_PROFILE_NODE
             auto res = new TT();
             res->addRef();
+#if DAS_ENABLE_SMART_PTR_TRACKING
+            Context::sptrAllocations.push_back(res);
+#endif
             return (char *) res;
         }
         virtual SimNode * visit ( SimVisitor & vis ) override;
@@ -3067,7 +3073,6 @@ SIM_NODE_AT_VECTOR(Float, float)
         SimNode *   subexpr;
         int32_t     variant;
     };
-
 
 #if !_TARGET_64BIT && !defined(__clang__) && (_MSC_VER <= 1900)
 #define _msc_inline_bug __declspec(noinline)

@@ -318,6 +318,7 @@ int main( int argc, char * argv[] ) {
         setDasRoot(argv[1]);
     }
     setCommandLineArguments(argc,argv);
+    // ptr_ref_count::ref_count_track = 0x1242c;
     // das_track_string_breakpoint(189);
     // das_track_breakpoint(8);
     // _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
@@ -349,13 +350,24 @@ int main( int argc, char * argv[] ) {
 // examples
     // #define TEST_NAME   "/examples/test/dict_pg.das"
     #define TEST_NAME   "/examples/test/hello_world.das"
+    // #define TEST_NAME   "/examples/test/base64.das"
     // #define TEST_NAME   "/examples/test/regex_lite.das"
     // #define TEST_NAME   "/examples/test/hello_world.das"
     // #define TEST_NAME   "/examples/test/json_example.das"
     // #define TEST_NAME   "/examples/test/ast_print.das"
     // #define TEST_NAME   "/examples/test/unit_tests/hint_macros_example.das"
+    // #define TEST_NAME   "/examples/test/unit_tests/aonce.das"
     unit_test(getDasRoot() +  TEST_NAME,false);
     // unit_test(getDasRoot() +  TEST_NAME,true);
+    Module::Shutdown();
+#if DAS_ENABLE_SMART_PTR_TRACKING
+    dumpTrackingLeaks();
+#endif
+    getchar();
+    return 0;
+#endif
+#if 0 // Module test
+    run_module_test(getDasRoot() +  "/examples/test/module", "main_inc.das", true);
     Module::Shutdown();
     getchar();
     return 0;
@@ -367,6 +379,7 @@ int main( int argc, char * argv[] ) {
     ok = run_unit_tests(getDasRoot() +  "/examples/test/optimizations") && ok;
     ok = run_exception_tests(getDasRoot() +  "/examples/test/runtime_errors") && ok;
     ok = run_module_test(getDasRoot() +  "/examples/test/module", "main.das", true) && ok;
+    ok = run_module_test(getDasRoot() +  "/examples/test/module", "main_inc.das", true)  && ok;
     ok = run_module_test(getDasRoot() +  "/examples/test/module", "main_default.das", false) && ok;
     ok = run_module_test(getDasRoot() +  "/examples/test/module/alias", "main.das", true) && ok;
     ok = run_module_test(getDasRoot() +  "/examples/test/module/cdp", "main.das", true) && ok;

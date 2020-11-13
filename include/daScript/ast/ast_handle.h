@@ -79,6 +79,7 @@ namespace das
             string      name;
             string      cppName;
             TypeDeclPtr decl;
+            TypeDeclPtr constDecl;
             uint32_t    offset;
             function<SimNode * (FactoryNodeType,Context &,const LineInfo &, const ExpressionPtr &)>   factory;
         };
@@ -89,8 +90,8 @@ namespace das
         virtual bool rtti_isHandledTypeAnnotation() const override { return true; }
         virtual bool rtti_isBasicStructureAnnotation() const override { return true; }
         virtual bool isRefType() const override { return true; }
-        virtual TypeDeclPtr makeFieldType(const string & na) const override;
-        virtual TypeDeclPtr makeSafeFieldType(const string & na) const override;
+        virtual TypeDeclPtr makeFieldType(const string & na, bool isConst) const override;
+        virtual TypeDeclPtr makeSafeFieldType(const string & na, bool isConst) const override;
         virtual SimNode * simulateGetField(const string & na, Context & context,
             const LineInfo & at, const ExpressionPtr & value) const override;
         virtual SimNode * simulateGetFieldR2V(const string & na, Context & context,
@@ -134,15 +135,69 @@ namespace das
             field.decl = makeType<resultType>(*mlib);
             DAS_ASSERTF ( !(field.decl->isRefType() && !field.decl->ref), "property can't be CMRES, in %s", field.decl->describe().c_str() );
             field.offset = -1U;
-            field.factory = [](FactoryNodeType nt,Context & context,const LineInfo & at, const ExpressionPtr & value) -> SimNode * {
+            auto sft = make_smart<TypeDecl>(*field.decl);
+            field.factory = [sft](FactoryNodeType nt,Context & context,const LineInfo & at, const ExpressionPtr & value) -> SimNode * {
                 switch ( nt ) {
                     case FactoryNodeType::getField:
                         return context.code->makeNode<SimNode_Property<ManagedType,FunT,PROP,false>>(at, value->simulate(context));
                     case FactoryNodeType::getFieldPtr:
                         return context.code->makeNode<SimNode_Property<ManagedType,FunT,PROP,true>>(at, value->simulate(context));
+                    case FactoryNodeType::getFieldR2V: {
+                        auto getFieldNode = context.code->makeNode<SimNode_Property<ManagedType,FunT,PROP,true>>(at, value->simulate(context));
+                        return ExprRef2Value::GetR2V(context, at, sft, getFieldNode);
+                    }
                     case FactoryNodeType::safeGetField:
                     case FactoryNodeType::safeGetFieldPtr:
+                    case FactoryNodeType::getFieldPtrR2V:
+                        DAS_ASSERTF(0, "property requested property type, which is meaningless for the non-ref"
+                                    "we should not be here, since property can't have ref type"
+                                    "daScript compiler will later report missing node error");
+                    default:
+                        return nullptr;
+                }
+            };
+        }
+        template <typename FunT, FunT PROP, typename FunTConst, FunTConst PROP_CONST>
+        void addPropertyExtConst ( const string & na, const string & cppNa="" ) {
+            auto & field = fields[na];
+            if ( field.decl ) {
+                DAS_FATAL_LOG("structure field %s already exist in structure %s\n", na.c_str(), name.c_str() );
+                DAS_FATAL_ERROR;
+            }
+            using resultType = decltype((((ManagedType *)0)->*PROP)());
+            field.cppName = (cppNa.empty() ? na : cppNa) + "()";
+            field.decl = makeType<resultType>(*mlib);
+            DAS_ASSERTF ( !(field.decl->isRefType() && !field.decl->ref), "property can't be CMRES, in %s", field.decl->describe().c_str() );
+            using constResultType = decltype((((ManagedType *)0)->*PROP_CONST)());
+            field.constDecl = makeType<constResultType>(*mlib);
+            DAS_ASSERTF ( !(field.constDecl->isRefType() && !field.constDecl->ref), "property can't be CMRES, in %s", field.constDecl->describe().c_str() );
+            field.offset = -1U;
+            auto sft = make_smart<TypeDecl>(*field.decl);
+            auto sftc = make_smart<TypeDecl>(*field.constDecl);
+            field.factory = [sft,sftc](FactoryNodeType nt,Context & context,const LineInfo & at, const ExpressionPtr & value) -> SimNode * {
+                switch ( nt ) {
+                    case FactoryNodeType::getField:
+                        if ( value->type->constant ) {
+                            return context.code->makeNode<SimNode_Property<ManagedType,FunTConst,PROP_CONST,false>>(at, value->simulate(context));
+                        } else {
+                            return context.code->makeNode<SimNode_Property<ManagedType,FunT,PROP,false>>(at, value->simulate(context));
+                        }
+                    case FactoryNodeType::getFieldPtr:
+                        if ( value->type->constant ) {
+                            return context.code->makeNode<SimNode_Property<ManagedType,FunTConst,PROP_CONST,true>>(at, value->simulate(context));
+                        } else {
+                            return context.code->makeNode<SimNode_Property<ManagedType,FunT,PROP,true>>(at, value->simulate(context));
+                        }
                     case FactoryNodeType::getFieldR2V:
+                        if ( value->type->constant ) {
+                            auto getFieldNode =  context.code->makeNode<SimNode_Property<ManagedType,FunTConst,PROP_CONST,false>>(at, value->simulate(context));
+                            return ExprRef2Value::GetR2V(context, at, sftc, getFieldNode);
+                        } else {
+                            auto getFieldNode =  context.code->makeNode<SimNode_Property<ManagedType,FunT,PROP,false>>(at, value->simulate(context));
+                            return ExprRef2Value::GetR2V(context, at, sft, getFieldNode);
+                        }
+                    case FactoryNodeType::safeGetField:
+                    case FactoryNodeType::safeGetFieldPtr:
                     case FactoryNodeType::getFieldPtrR2V:
                         DAS_ASSERTF(0, "property requested property type, which is meaningless for the non-ref"
                                     "we should not be here, since property can't have ref type"
@@ -281,32 +336,6 @@ namespace das
             DAS_EVAL_NODE
 #undef EVAL_NODE
         };
-        struct VectorIterator : Iterator {
-            VectorIterator  ( VectorType * ar ) : array(ar) {}
-            virtual bool first ( Context &, char * _value ) override {
-                char ** value = (char **) _value;
-                char * data     = (char *) array->data();
-                uint32_t size   = (uint32_t) array->size();
-                *value          = data;
-                array_end       = data + size * sizeof(OT);
-                return (bool) size;
-            }
-            virtual bool next  ( Context &, char * _value ) override {
-                char ** value = (char **) _value;
-                char * data = *value + sizeof(OT);
-                *value = data;
-                return data != array_end;
-            }
-            virtual void close ( Context & context, char * _value ) override {
-                if ( _value ) {
-                    char ** value = (char **) _value;
-                    *value = nullptr;
-                }
-                context.heap->free((char *)this, sizeof(VectorIterator));
-            }
-            VectorType * array;
-            char * array_end = nullptr;
-        };
         ManagedVectorAnnotation(const string & n, ModuleLibrary & lib)
             : TypeAnnotation(n) {
                 vecType = makeType<OT>(lib);
@@ -321,7 +350,7 @@ namespace das
         virtual bool canMove() const override { return false; }
         virtual bool canCopy() const override { return false; }
         virtual bool isLocal() const override { return false; }
-        virtual TypeDeclPtr makeFieldType ( const string & na ) const override {
+        virtual TypeDeclPtr makeFieldType ( const string & na, bool ) const override {
             if ( na=="length" ) return make_smart<TypeDecl>(Type::tInt);
             return nullptr;
         }
@@ -371,7 +400,7 @@ namespace das
 
         virtual SimNode * simulateGetIterator ( Context & context, const LineInfo & at, const ExpressionPtr & src ) const override {
             auto rv = src->simulate(context);
-            return context.code->makeNode<SimNode_AnyIterator<VectorType,VectorIterator>>(at, rv);
+            return context.code->makeNode<SimNode_AnyIterator<VectorType,StdVectorIterator<VectorType>>>(at, rv);
         }
         virtual SimNode * simulateGetField ( const string & na, Context & context,
                                             const LineInfo & at, const ExpressionPtr & value ) const override {
@@ -421,31 +450,52 @@ namespace das
     template <typename TT, bool byValue = has_cast<TT>::value >
     struct registerVectorFunctions;
 
+
     template <typename TT>
     struct registerVectorFunctions<TT,false> {
-        static void init ( Module * mod, const ModuleLibrary & lib ) {
-            addExtern<DAS_BIND_FUN((das_vector_push<TT,TT>))>(*mod, lib, "push",
-                SideEffects::modifyArgument, "das_vector_push")->generated = true;
+        static void init ( Module * mod, const ModuleLibrary & lib, bool canCopy, bool canMove ) {
+            if ( canMove ) {
+                addExtern<DAS_BIND_FUN((das_vector_emplace<TT,TT>))>(*mod, lib, "emplace",
+                    SideEffects::modifyArgument, "das_vector_emplace")->generated = true;
+            }
+            if ( canCopy ) {
+                addExtern<DAS_BIND_FUN((das_vector_push<TT,TT>))>(*mod, lib, "push",
+                    SideEffects::modifyArgument, "das_vector_push")->generated = true;
+            }
             addExtern<DAS_BIND_FUN(das_vector_pop<TT>)>(*mod, lib, "pop",
                 SideEffects::modifyArgument, "das_vector_pop")->generated = true;
             addExtern<DAS_BIND_FUN(das_vector_clear<TT>)>(*mod, lib, "clear",
                 SideEffects::modifyArgument, "das_vector_clear")->generated = true;
             addExtern<DAS_BIND_FUN(das_vector_resize<TT>)>(*mod, lib, "resize",
                 SideEffects::modifyArgument, "das_vector_resize")->generated = true;
+            addExtern<DAS_BIND_FUN(das_vector_each<TT>),SimNode_ExtFuncCallAndCopyOrMove,explicitConstArgFn>(*mod, lib, "each",
+                SideEffects::none, "das_vector_each")->generated = true;
+            addExtern<DAS_BIND_FUN(das_vector_each_const<TT>),SimNode_ExtFuncCallAndCopyOrMove,explicitConstArgFn>(*mod, lib, "each",
+                SideEffects::none, "das_vector_each_const")->generated = true;
         }
     };
 
     template <typename TT>
     struct registerVectorFunctions<TT,true> {
-        static void init ( Module * mod, const ModuleLibrary & lib ) {
-            addExtern<DAS_BIND_FUN((das_vector_push_value<TT,TT>))>(*mod, lib, "push",
-                SideEffects::modifyArgument, "das_vector_push_value")->generated = true;
+        static void init ( Module * mod, const ModuleLibrary & lib, bool canCopy, bool canMove ) {
+            if ( canMove ) {
+                addExtern<DAS_BIND_FUN((das_vector_emplace<TT,TT>))>(*mod, lib, "emplace",
+                    SideEffects::modifyArgument, "das_vector_emplace")->generated = true;
+            }
+            if ( canCopy ) {
+                addExtern<DAS_BIND_FUN((das_vector_push_value<TT,TT>))>(*mod, lib, "push",
+                    SideEffects::modifyArgument, "das_vector_push_value")->generated = true;
+            }
             addExtern<DAS_BIND_FUN(das_vector_pop<TT>)>(*mod, lib, "pop",
                 SideEffects::modifyArgument, "das_vector_pop")->generated = true;
             addExtern<DAS_BIND_FUN(das_vector_clear<TT>)>(*mod, lib, "clear",
                 SideEffects::modifyArgument, "das_vector_clear")->generated = true;
             addExtern<DAS_BIND_FUN(das_vector_resize<TT>)>(*mod, lib, "resize",
                 SideEffects::modifyArgument, "das_vector_resize")->generated = true;
+            addExtern<DAS_BIND_FUN(das_vector_each<TT>),SimNode_ExtFuncCallAndCopyOrMove,explicitConstArgFn>(*mod, lib, "each",
+                SideEffects::none, "das_vector_each")->generated = true;
+            addExtern<DAS_BIND_FUN(das_vector_each_const<TT>),SimNode_ExtFuncCallAndCopyOrMove,explicitConstArgFn>(*mod, lib, "each",
+                SideEffects::none, "das_vector_each_const")->generated = true;
         }
     };
 
@@ -460,7 +510,10 @@ namespace das
                 ann->cppName = "das::vector<" + describeCppType(declT) + ">";
                 auto mod = library.front();
                 mod->addAnnotation(ann);
-                registerVectorFunctions<TT>::init(mod,library);
+                registerVectorFunctions<TT>::init(mod,library,
+                    declT->canCopy(),
+                    declT->canMove()
+                );
             }
             return makeHandleType(library,declN.c_str());
         }

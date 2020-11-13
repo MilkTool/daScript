@@ -16,8 +16,21 @@ FIND_FLEX_AND_BISON()
 
 SETUP_COMPILER()
 
+FILE(GLOB DAS_MODULES RELATIVE "${PROJECT_SOURCE_DIR}/modules" "modules/*")
+FOREACH(module ${DAS_MODULES})
+    INCLUDE(modules/${module}/CMakeLists.txt OPTIONAL)
+ENDFOREACH()
+
 FLEX(src/parser/ds_lexer.lpp)
 BISON(src/parser/ds_parser.ypp)
+
+# maximum number of arguments for DAS_FOR_EACH macros.
+# increase if needed.
+IF(MSVC)
+    SET(MAX_DAS_FOR_EACH_ARGS 125)
+ELSE()
+    SET(MAX_DAS_FOR_EACH_ARGS 600)
+ENDIF()
 
 SET(PARSER_GENERATED_SRC
 src/parser/ds_parser.hpp
@@ -213,6 +226,7 @@ src/simulate/runtime_range.cpp
 src/simulate/runtime_profile.cpp
 src/simulate/simulate.cpp
 src/simulate/simulate_gc.cpp
+src/simulate/simulate_tracking.cpp
 src/simulate/simulate_visit.cpp
 src/simulate/simulate_print.cpp
 src/simulate/simulate_fn_hash.cpp
@@ -292,6 +306,12 @@ ADD_LIBRARY(libDaScript ${VECMATH_SRC} ${AST_SRC} ${BUILTIN_SRC} ${MISC_SRC} ${S
 	${DAGOR_NOISE_SRC} ${FLAT_HASH_MAP_SRC} ${DAS_LIB_SRC})
 SETUP_CPP11(libDaScript)
 
+IF(DAS_GEN_FOR_EACH_INCLUDED)
+    DAS_GEN_FOR_EACH(include/daScript/simulate/for_each.h ${MAX_DAS_FOR_EACH_ARGS})
+ELSE()
+    MESSAGE(STATUS "dasGenForEach module not found. Pre-generated files will be used.")
+ENDIF()
+
 # AOT compiler
 
 SET(DASAOT_MAIN_SRC
@@ -328,9 +348,9 @@ MACRO(DAS_AOT input genList mainTarget dasAotTool)
     list(APPEND ${genList} ${out_src})
 ENDMACRO()
 
-MACRO(DAS_AOT_DIR inFiles genList mainTarget)
+MACRO(DAS_AOT_DIR inFiles genList mainTarget dasAotTool)
     FOREACH(inF ${inFiles})
-        DAS_AOT(${inF} ${genList} ${mainTarget}  dasAot)
+        DAS_AOT(${inF} ${genList} ${mainTarget} ${dasAotTool})
     ENDFOREACH()
 ENDMACRO()
 
@@ -344,8 +364,9 @@ DAS_AOT("daslib/json_boost.das" AOT_GENERATED_SRC dasAotStub dasAot)
 DAS_AOT("daslib/regex.das" AOT_GENERATED_SRC dasAotStub dasAot)
 DAS_AOT("daslib/regex_boost.das" AOT_GENERATED_SRC dasAotStub dasAot)
 DAS_AOT("daslib/strings_boost.das" AOT_GENERATED_SRC dasAotStub dasAot)
-# DAS_AOT("daslib/rst.das" AOT_GENERATED_SRC dasAotStub  dasAot)
-# DAS_AOT("daslib/cpp_bind.das" AOT_GENERATED_SRC dasAotStub  dasAot)
+DAS_AOT("daslib/rst.das" AOT_GENERATED_SRC dasAotStub  dasAot)
+DAS_AOT("daslib/cpp_bind.das" AOT_GENERATED_SRC dasAotStub  dasAot)
+DAS_AOT("daslib/template_boost.das" AOT_GENERATED_SRC dasAotStub  dasAot)
 SOURCE_GROUP_FILES("aot stub" AOT_GENERATED_SRC)
 
 # libUriParser
@@ -518,8 +539,8 @@ SOURCE_GROUP_FILES("source" TEST_MAIN_SRC)
 
 add_custom_target(daScriptTestAot)
 SET(TEST_GENERATED_SRC)
-DAS_AOT_DIR("${UNIT_TEST_SRC}" TEST_GENERATED_SRC daScriptTestAot)
-#DAS_AOT("examples/test/hello_world.das" TEST_GENERATED_SRC daScriptTestAot)
+DAS_AOT_DIR("${UNIT_TEST_SRC}" TEST_GENERATED_SRC daScriptTestAot dasAot)
+#DAS_AOT("examples/test/hello_world.das" TEST_GENERATED_SRC daScriptTestAot dasAot)
 SOURCE_GROUP_FILES("generated" TEST_GENERATED_SRC)
 
 add_executable(daScriptTest ${UNIT_TEST_SRC} ${COMPILATION_FAIL_TEST_SRC} ${MIX_TEST_SRC} ${MODULE_TEST_SRC}
@@ -560,7 +581,7 @@ SOURCE_GROUP_FILES("source" PROFILE_MAIN_SRC)
 
 add_custom_target(daScriptProfileAot)
 SET(PROFILE_GENERATED_SRC)
-DAS_AOT_DIR("${PROFILE_SRC}" PROFILE_GENERATED_SRC daScriptProfileAot)
+DAS_AOT_DIR("${PROFILE_SRC}" PROFILE_GENERATED_SRC daScriptProfileAot dasAot)
 SOURCE_GROUP_FILES("generated" PROFILE_GENERATED_SRC)
 
 add_executable(daScriptProfile ${PROFILE_SRC} ${PROFILE_MAIN_SRC} ${PROFILE_GENERATED_SRC} ${AOT_GENERATED_SRC})
@@ -649,3 +670,18 @@ examples/tutorial/tutorial03.cpp
 examples/tutorial/tutorial03.das
 )
 DAS_TUTORIAL(tutorial03 "${TUTORIAL_03_SRC}")
+
+#################################
+# tutorial 04 - C++ class adapter
+#################################
+SET(TUTORIAL_04_SRC
+examples/tutorial/tutorial.inc
+examples/tutorial/tutorial04.cpp
+examples/tutorial/tutorial04.das
+examples/tutorial/tutorial04module.das
+examples/tutorial/tutorial04module.das.inc
+)
+DAS_TUTORIAL(tutorial04 "${TUTORIAL_04_SRC}")
+target_include_directories(tutorial04 PUBLIC ${CMAKE_SOURCE_DIR}/src/builtin)   # we need RTTI to bind StructInfo and such
+XXD(examples/tutorial/tutorial04module.das)
+
